@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-semibold text-white">{{ company.name }}</h1>
+  <p class="text-cyber-accent mt-1">{{ company.tagline }}</p>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-2 space-y-6">
+    <div class="glass rounded-xl p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Mission</h2>
+      <p class="text-slate-200 leading-relaxed">{{ company.mission }}</p>
+    </div>
+
+    <div class="glass rounded-xl p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Product</h2>
+      <p class="text-white font-medium text-lg">{{ company.product }} <span class="text-sm font-mono text-cyber-accent">v{{ company.version }}</span></p>
+      <p class="text-slate-400 mt-2 text-sm">
+        Modular Python-based security auditing and regulatory compliance orchestration engine.
+        Automates technical reconnaissance, vulnerability assessment, regional threat intelligence
+        enrichment, and statutory legal risk mapping tailored to the Trinidad and Tobago
+        Computer Misuse Act and Caribbean regulatory frameworks.
+      </p>
+    </div>
+
+    <div class="glass rounded-xl p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">Regulatory Alignment</h2>
+      <ul class="space-y-2">
+        {% for item in company.compliance %}
+        <li class="flex items-start gap-2 text-sm text-slate-300">
+          <span class="text-cyber-accent mt-0.5">▸</span>
+          {{ item }}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="glass rounded-xl p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-3">11-Module Pipeline</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">nmap_module – Network Recon</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">openvas_module – Vulnerability Assessment</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">tt_compliance_mapper – Legal Mapping</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">regional_threat_intel – TT-CSIRT / CARICOM</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">patch_verification_module</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">pdf_report_module – Executive Reporting</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">incident_response_module – Playbooks</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">data_exfiltration_module</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">continuous_ids_module</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">database_module – SQLite Archive</div>
+        <div class="px-3 py-2 rounded bg-cyber-900/60 font-mono text-xs">diagnostics_module – Self-Healing</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="space-y-6">
+    <div class="glass rounded-xl p-6">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-4">Contact</h2>
+      <dl class="space-y-3 text-sm">
+        <div>
+          <dt class="text-slate-500 text-xs">Address</dt>
+          <dd class="text-slate-200 mt-0.5">{{ company.address }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs">Phone</dt>
+          <dd class="text-slate-200 mt-0.5 font-mono">{{ company.phone }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs">Operations</dt>
+          <dd class="text-cyber-accent mt-0.5">{{ company.email }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs">Support</dt>
+          <dd class="text-cyber-accent mt-0.5">{{ company.support }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs">Web</dt>
+          <dd class="text-slate-200 mt-0.5">{{ company.website }}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500 text-xs">Registration</dt>
+          <dd class="text-slate-200 mt-0.5 font-mono">{{ company.reg_number }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    <div class="glass rounded-xl p-6 border border-cyber-accent/20">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-cyber-accent mb-2">Dashboard</h2>
+      <p class="text-xs text-slate-400 mb-3">This operations console runs on port <strong class="text-white">1881</strong> and provides live visibility into the CyberAudit pipeline, historical sessions, downloadable reports, and IR playbooks.</p>
+      <p class="text-[10px] font-mono text-slate-500">Health endpoint: GET /health</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
