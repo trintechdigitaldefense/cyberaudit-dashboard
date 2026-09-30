@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold text-white">Operations Overview</h1>
+  <p class="text-sm text-slate-400 mt-1">{{ company.tagline }}</p>
+</div>
+
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpi-row">
+  <div class="glass rounded-xl p-4 glow">
+    <div class="text-xs text-slate-400 uppercase tracking-wider">Active Modules</div>
+    <div class="text-2xl font-semibold text-cyber-accent mt-1" id="kpi-running">—</div>
+  </div>
+  <div class="glass rounded-xl p-4">
+    <div class="text-xs text-slate-400 uppercase tracking-wider">Recent Findings</div>
+    <div class="text-2xl font-semibold text-white mt-1" id="kpi-findings">—</div>
+  </div>
+  <div class="glass rounded-xl p-4">
+    <div class="text-xs text-slate-400 uppercase tracking-wider">High / Critical</div>
+    <div class="text-2xl font-semibold text-cyber-danger mt-1" id="kpi-high">—</div>
+  </div>
+  <div class="glass rounded-xl p-4">
+    <div class="text-xs text-slate-400 uppercase tracking-wider">Avg Compliance</div>
+    <div class="text-2xl font-semibold text-cyber-accent mt-1" id="kpi-compliance">—</div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <div class="lg:col-span-1 glass rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Module Status</h2>
+      <span class="text-[10px] font-mono text-slate-500">11 modules</span>
+    </div>
+    <div id="module-list" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+      <div class="text-slate-500 text-sm">Loading…</div>
+    </div>
+  </div>
+
+  <div class="lg:col-span-2 glass rounded-xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Recent Audit Sessions</h2>
+      <a href="/reports" class="text-xs text-cyber-accent hover:underline">View reports →</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-slate-500 border-b border-cyber-700">
+            <th class="pb-2 font-medium">Session</th>
+            <th class="pb-2 font-medium">Target</th>
+            <th class="pb-2 font-medium">Findings</th>
+            <th class="pb-2 font-medium">Score</th>
+            <th class="pb-2 font-medium">Status</th>
+          </tr>
+        </thead>
+        <tbody id="session-table" class="divide-y divide-cyber-800">
+          <tr><td colspan="5" class="py-4 text-slate-500">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mt-6 glass rounded-xl p-5">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">
+      <span class="inline-block w-2 h-2 rounded-full bg-cyber-accent pulse-dot mr-2"></span>
+      Live Event Stream (last 8)
+    </h2>
+    <a href="/live" class="text-xs text-cyber-accent hover:underline">Full live feed →</a>
+  </div>
+  <div id="live-preview" class="space-y-2 font-mono text-xs">
+    <div class="text-slate-500">Connecting…</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function refreshOverview() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    const running = data.modules.filter(m => m.status === 'running').length;
+    document.getElementById('kpi-running').textContent = running;
+    const totalFindings = data.sessions.reduce((s, x) => s + (x.findings_count || 0), 0);
+    document.getElementById('kpi-findings').textContent = totalFindings;
+    const high = data.sessions.reduce((s, x) => s + (x.high_severity || 0), 0);
+    document.getElementById('kpi-high').textContent = high;
+    const scores = data.sessions.filter(s => s.compliance_score).map(s => s.compliance_score);
+    const avg = scores.length ? (scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1) : '—';
+    document.getElementById('kpi-compliance').textContent = avg + '%';
+
+    const ml = document.getElementById('module-list');
+    ml.innerHTML = data.modules.map(m => {
+      const statusColor = m.status === 'running' ? 'bg-cyber-accent' : 'bg-slate-600';
+      const short = m.module_name.replace('_module', '').replace(/_/g, ' ');
+      return `<div class="flex items-center justify-between py-1.5 px-2 rounded hover:bg-cyber-800/50">
+          <div class="flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full ${statusColor}"></span>
+            <span class="text-sm capitalize">${short}</span>
+          </div>
+          <span class="text-[10px] font-mono text-slate-500">${m.status}</span>
+        </div>`;
+    }).join('');
+
+    const st = document.getElementById('session-table');
+    st.innerHTML = data.sessions.map(s => `
+      <tr class="hover:bg-cyber-800/30">
+        <td class="py-2.5 font-mono text-xs text-cyber-accent">${s.session_id}</td>
+        <td class="py-2.5 text-slate-300">${s.target}</td>
+        <td class="py-2.5">
+          <span class="text-cyber-danger">${s.high_severity}H</span>
+          <span class="text-cyber-warn ml-1">${s.medium_severity}M</span>
+          <span class="text-slate-400 ml-1">${s.low_severity}L</span>
+        </td>
+        <td class="py-2.5 font-mono">${s.compliance_score}%</td>
+        <td class="py-2.5"><span class="text-xs px-2 py-0.5 rounded bg-green-900/40 text-green-400">${s.status}</span></td>
+      </tr>`).join('');
+
+    const lp = document.getElementById('live-preview');
+    lp.innerHTML = data.recent_events.slice(0, 8).map(e => {
+      const sevClass = 'sev-' + (e.severity || 'info');
+      return `<div class="flex gap-3 py-1 border-b border-cyber-800/50">
+        <span class="text-slate-500 shrink-0">${e.timestamp.split(' ')[1] || e.timestamp}</span>
+        <span class="${sevClass} uppercase text-[10px] w-14 shrink-0">${e.severity}</span>
+        <span class="text-slate-400 shrink-0 w-36 truncate">${e.module.replace('_module','')}</span>
+        <span class="text-slate-200 truncate">${e.message}</span>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    console.error(err);
+  }
+}
+refreshOverview();
+setInterval(refreshOverview, 8000);
+</script>
+{% endblock %}

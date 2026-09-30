@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CyberAudit Dashboard{% endblock %} | TrinTech Digital Defense</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              950: '#05080f',
+              900: '#0a101c',
+              800: '#111827',
+              700: '#1a2438',
+              600: '#243049',
+              accent: '#00d4aa',
+              warn: '#f59e0b',
+              danger: '#ef4444',
+              info: '#3b82f6',
+            }
+          },
+          fontFamily: {
+            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
+            mono: ['IBM Plex Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #05080f; color: #e2e8f0; }
+    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(0, 212, 170, 0.12); }
+    .glow { box-shadow: 0 0 20px rgba(0, 212, 170, 0.15); }
+    .sev-critical { color: #ef4444; }
+    .sev-high { color: #f97316; }
+    .sev-medium { color: #f59e0b; }
+    .sev-low { color: #3b82f6; }
+    .sev-info { color: #94a3b8; }
+    .pulse-dot { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a101c; }
+    ::-webkit-scrollbar-thumb { background: #243049; border-radius: 3px; }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+  <nav class="glass sticky top-0 z-50 border-b border-cyber-600/40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded bg-cyber-accent/20 flex items-center justify-center">
+            <svg class="w-5 h-5 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-sm font-semibold tracking-wide text-white">CyberAudit</div>
+            <div class="text-[10px] text-cyber-accent/80 font-mono">TrinTech Digital Defense</div>
+          </div>
+        </div>
+        <div class="hidden md:flex items-center gap-1 text-sm">
+          <a href="/" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/' %}bg-cyber-700 text-cyber-accent{% endif %}">Overview</a>
+          <a href="/live" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/live' %}bg-cyber-700 text-cyber-accent{% endif %}">Live Feed</a>
+          <a href="/reports" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/reports' %}bg-cyber-700 text-cyber-accent{% endif %}">Reports</a>
+          <a href="/playbooks" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path.startswith('/playbook') %}bg-cyber-700 text-cyber-accent{% endif %}">Playbooks</a>
+          <a href="/about" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/about' %}bg-cyber-700 text-cyber-accent{% endif %}">About</a>
+        </div>
+        <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+          <span class="w-2 h-2 rounded-full bg-cyber-accent pulse-dot"></span>
+          <span id="clock">--:--:--</span>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="border-t border-cyber-700/50 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+      <div>
+        © 2026 {{ company.name }} · {{ company.product }} v{{ company.version }} · Reg {{ company.reg_number }}
+      </div>
+      <div class="font-mono">
+        Port 1881 · Trinidad &amp; Tobago · Computer Misuse Act Chap. 11:17
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('clock').textContent = now.toLocaleTimeString('en-TT', { hour12: false });
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
