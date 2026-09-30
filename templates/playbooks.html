@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Playbooks{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold text-white">Incident Response Playbooks</h1>
+  <p class="text-sm text-slate-400 mt-1">Automated &amp; manual containment procedures triggered by high-severity findings</p>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+  {% for pb in playbooks %}
+  <div class="glass rounded-xl p-5 flex flex-col">
+    <div class="flex items-start justify-between mb-3">
+      <div class="w-10 h-10 rounded-lg bg-cyber-accent/10 flex items-center justify-center text-cyber-accent">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+      </div>
+      <span class="text-[10px] font-mono text-slate-500">{{ (pb.size / 1024) | round(1) }} KB</span>
+    </div>
+    <h3 class="font-medium text-white text-sm mb-2 break-all">{{ pb.name }}</h3>
+    <pre class="text-xs text-slate-400 font-mono flex-1 overflow-hidden mb-4 leading-relaxed">{{ pb.preview }}</pre>
+    <div class="flex gap-2 mt-auto">
+      <a href="/playbook/{{ pb.name }}" class="flex-1 text-center px-3 py-1.5 rounded bg-cyber-700 hover:bg-cyber-600 text-xs transition">View</a>
+      <a href="/download/playbook/{{ pb.name }}" class="px-3 py-1.5 rounded bg-cyber-accent/10 text-cyber-accent hover:bg-cyber-accent/20 text-xs transition">Download</a>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-span-full text-center text-slate-500 py-12">No playbooks found.</div>
+  {% endfor %}
+</div>
+{% endblock %}
