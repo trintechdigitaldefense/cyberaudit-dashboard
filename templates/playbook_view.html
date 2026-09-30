@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div>
+    <a href="/playbooks" class="text-xs text-cyber-accent hover:underline">← All playbooks</a>
+    <h1 class="text-xl font-semibold text-white mt-1 font-mono">{{ name }}</h1>
+  </div>
+  <a href="/download/playbook/{{ name }}"
+     class="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-cyber-accent/10 text-cyber-accent hover:bg-cyber-accent/20 transition text-sm">
+    Download Markdown
+  </a>
+</div>
+
+<div class="glass rounded-xl p-6 md:p-8">
+  <article class="prose prose-invert prose-sm max-w-none font-mono text-sm leading-relaxed whitespace-pre-wrap text-slate-300">{{ content }}</article>
+</div>
+{% endblock %}
