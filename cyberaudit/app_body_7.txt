@@ -41,14 +41,19 @@ _workers_started = False
 def start_background_workers():
     init_db()
     ensure_sample_playbooks()
+    # Real pipeline always: job runner executes queued audits
+    from cyberaudit.workers import job_runner
+    threading.Thread(target=job_runner, daemon=True).start()
+    threading.Thread(target=inbox_poller, daemon=True).start()
+    threading.Thread(target=retention_worker, daemon=True).start()
     if config.DEMO_MODE:
         if db_is_empty():
             seed_sample_data()
         ensure_sample_reports()
         threading.Thread(target=live_feed_simulator, daemon=True).start()
-        logger.warning("DEMO_MODE=1 — simulator active")
-    threading.Thread(target=inbox_poller, daemon=True).start()
-    threading.Thread(target=retention_worker, daemon=True).start()
+        logger.warning("DEMO_MODE=1 — synthetic feed ON (set DEMO_MODE=0 for production)")
+    else:
+        logger.info("REAL MODE — job runner active; queue audits from Overview")
 def ensure_workers():
     global _workers_started
     if _workers_started:

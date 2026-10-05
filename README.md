@@ -1,8 +1,10 @@
 # CyberAudit Operations Dashboard
 
-**TrinTech Digital Defense** · **v2.4.0-p3** · Port **1881**
+**TrinTech Digital Defense** · Real audit pipeline · Port **1881**
 
-## Clone and run
+This is **not** a toy demo by default. Queued audits run a real reconnaissance → assessment → TT Computer Misuse Act mapping → report → SQLite archive pipeline.
+
+## Production run (recommended)
 
 ```bash
 git clone https://github.com/trintechdigitaldefense/cyberaudit-dashboard.git
@@ -11,32 +13,47 @@ cd cyberaudit-dashboard
 python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
-export DEMO_MODE=1
+export DEMO_MODE=0
 export CYBERAUDIT_USER=admin
-export CYBERAUDIT_PASSWORD='change-me-now'
+export CYBERAUDIT_PASSWORD='your-strong-password'
 export CYBERAUDIT_SECRET=$(openssl rand -hex 32)
 export CYBERAUDIT_INGEST_TOKEN=$(openssl rand -hex 24)
 
 python3 dashboard_app.py
 ```
 
-Open **http://127.0.0.1:1881** — login with `admin` / your password.
+Open **http://127.0.0.1:1881** → sign in → **Overview** → enter a target (IP, hostname, or small CIDR) → **Queue job**.
 
-## Layout
+The **job runner** will:
 
-- `dashboard_app.py` — entrypoint
-- `cyberaudit/` — package (`config`, `security`, `db`, `workers`, `app.py` + `app_body_0..7.txt`)
-- `templates/` — UI (Overview, Live, Findings, Reports, Playbooks)
+1. Run TCP connect recon (uses **nmap** automatically if installed)
+2. Apply vulnerability heuristics on open services
+3. Map findings to **Computer Misuse Act Chap. 11:17** Sections 3 / 6 / 7
+4. Write a report under `reports/`
+5. Archive the session and findings in SQLite
 
-## Features (P0–P3)
+Watch **Live**, **Findings**, and **Reports** for real output.
 
-- Auth (operator / viewer), path-safe downloads, env secrets
-- Pipeline ingest APIs + inbox + retention
-- Start audit jobs, ack events, playbook trigger, findings UI
+## Optional: DEMO_MODE=1
 
-## Production
+Synthetic live-feed only. Do **not** use for client work.
 
-```bash
-export DEMO_MODE=0
-gunicorn --worker-class eventlet -w 1 -b 127.0.0.1:1881 dashboard_app:app
-```
+## Contact
+
+- **Email:** trintechdigitaldefense@gmail.com
+- **Phone:** 1-868-362-0679
+- **Web:** https://trintechdigitaldefense.github.io
+- **Ops:** Remote · Trinidad and Tobago
+
+## Architecture
+
+| Component | Role |
+|-----------|------|
+| `dashboard_app.py` | Entrypoint |
+| `cyberaudit/pipeline_engine.py` | **Real** audit execution |
+| `cyberaudit/workers.py` | Job runner + inbox + retention |
+| `cyberaudit/db.py` | SQLite archive |
+| `data/jobs/` | Queued audit jobs (JSON) |
+| `reports/` | Generated reports |
+
+External scanners (OpenVAS/GVM, full IDS) can still push via **ingest APIs** / **inbox** JSON using `CYBERAUDIT_INGEST_TOKEN`.
