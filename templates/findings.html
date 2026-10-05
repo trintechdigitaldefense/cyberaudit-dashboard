@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Findings{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold text-white">Findings</h1>
+    <p class="text-sm text-slate-400 mt-1">CVE / host detail with CMA section mapping</p>
+  </div>
+  <div class="flex flex-wrap gap-2 text-sm">
+    <select id="f-sev" class="rounded bg-cyber-900 border border-cyber-700 px-2 py-1.5 text-slate-300">
+      <option value="">All severity</option>
+      <option>critical</option><option>high</option><option>medium</option><option>low</option>
+    </select>
+    <input id="f-cma" placeholder="CMA section e.g. 6" class="rounded bg-cyber-900 border border-cyber-700 px-2 py-1.5 w-36 text-slate-300 font-mono text-xs">
+    <button id="f-reload" class="px-3 py-1.5 rounded bg-cyber-700 hover:bg-cyber-600 text-xs">Filter</button>
+  </div>
+</div>
+
+<div class="glass rounded-xl overflow-hidden">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-xs text-slate-500 border-b border-cyber-700 bg-cyber-900/50">
+        <th class="px-4 py-3">ID</th>
+        <th class="px-4 py-3">Severity</th>
+        <th class="px-4 py-3">Title</th>
+        <th class="px-4 py-3">Host</th>
+        <th class="px-4 py-3">CVE</th>
+        <th class="px-4 py-3">CMA</th>
+        <th class="px-4 py-3">Status</th>
+        <th class="px-4 py-3">Action</th>
+      </tr>
+    </thead>
+    <tbody id="findings-body" class="divide-y divide-cyber-800">
+      <tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">Loading…</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadFindings() {
+  const sev = document.getElementById('f-sev').value;
+  const cma = document.getElementById('f-cma').value.trim();
+  const q = new URLSearchParams();
+  if (sev) q.set('severity', sev);
+  if (cma) q.set('cma_section', cma);
+  const res = await fetch('/api/findings?' + q.toString());
+  const rows = await res.json();
+  const body = document.getElementById('findings-body');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-500">No findings</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(f => {
+    const sevClass = 'sev-' + (f.severity || 'info');
+    return `<tr class="hover:bg-cyber-800/30">
+      <td class="px-4 py-2.5 font-mono text-xs text-slate-500">${f.id}</td>
+      <td class="px-4 py-2.5"><span class="${sevClass} uppercase text-xs font-medium">${f.severity}</span></td>
+      <td class="px-4 py-2.5 text-slate-200">${f.title || ''}</td>
+      <td class="px-4 py-2.5 font-mono text-xs">${f.host || ''}${f.port ? ':'+f.port : ''}</td>
+      <td class="px-4 py-2.5 font-mono text-xs text-cyber-accent">${f.cve || '—'}</td>
+      <td class="px-4 py-2.5 text-xs">${f.cma_section || '—'}</td>
+      <td class="px-4 py-2.5 text-xs">${f.status || 'open'}</td>
+      <td class="px-4 py-2.5">
+        <select data-id="${f.id}" class="finding-status rounded bg-cyber-900 border border-cyber-700 text-xs px-1 py-1">
+          <option ${f.status==='open'?'selected':''}>open</option>
+          <option ${f.status==='mitigated'?'selected':''}>mitigated</option>
+          <option ${f.status==='accepted'?'selected':''}>accepted</option>
+          <option ${f.status==='false_positive'?'selected':''}>false_positive</option>
+        </select>
+      </td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('.finding-status').forEach(el => {
+    el.addEventListener('change', async () => {
+      const id = el.getAttribute('data-id');
+      const res = await fetch('/api/findings/' + id + '/status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: el.value})
+      });
+      if (res.status === 403) alert('Operator role required');
+    });
+  });
+}
+document.getElementById('f-reload').addEventListener('click', loadFindings);
+loadFindings();
+</script>
+{% endblock %}
