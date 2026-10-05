@@ -1,103 +1,75 @@
-@app.route("/api/playbooks/<path:name>/trigger", methods=["POST"])
-@login_required
-@operator_required
-def trigger_playbook(name: str):
-    path = safe_file_under(config.PLAYBOOKS_DIR, name)
-    if path is None:
-        return jsonify({"error": "playbook not found"}), 404
-    data = request.get_json(silent=True) or {}
-    host = (data.get("host") or data.get("target") or "").strip()
-    who = session.get("username") or "operator"
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    job_id = f"PB-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
-    payload = {
-        "type": "playbook_trigger",
-        "job_id": job_id,
-        "playbook": path.name,
-        "host": host,
-        "requested_by": who,
-        "created_at": now,
-        "notes": data.get("notes") or "",
-    }
-    out = config.JOBS_DIR / f"{job_id}.json"
-    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    insert_live_event(
-        module="incident_response_module",
-        message=f"Playbook triggered: {path.name}" + (f" host={host}" if host else ""),
-        severity="high",
-        event_type="playbook",
-        details=payload,
+            "modules": modules,
+            "recent_events": recent,
+            "sessions": sessions,
+            "server_time": datetime.datetime.now().isoformat(),
+            "company": COMPANY,
+            "demo_mode": config.DEMO_MODE,
+            "role": current_role(),
+            "pipeline": {
+                "db_path": str(config.DB_PATH),
+                "reports_dir": str(config.REPORTS_DIR),
+                "inbox_dir": str(config.INBOX_DIR),
+                "jobs_dir": str(config.JOBS_DIR),
+                "report_count": len(list(config.REPORTS_DIR.glob("*.pdf"))),
+                "ingest_enabled": bool(config.INGEST_TOKEN),
+            },
+        }
     )
-    return jsonify({"ok": True, "job": payload, "job_file": str(out)}), 201
-@app.route("/api/findings/<int:fid>/status", methods=["POST"])
+@app.route("/api/events")
 @login_required
-@operator_required
-def update_finding_status(fid: int):
-    data = request.get_json(silent=True) or {}
-    status = (data.get("status") or "").strip().lower()
-    if status not in ("open", "mitigated", "accepted", "false_positive"):
-        return jsonify({"error": "invalid status"}), 400
+def api_events():
+    limit = min(request.args.get("limit", 50, type=int), 500)
     with get_db() as conn:
-        cur = conn.execute("UPDATE findings SET status=? WHERE id=?", (status, fid))
-        conn.commit()
-        if cur.rowcount == 0:
-            return jsonify({"error": "not_found"}), 404
-    return jsonify({"ok": True, "id": fid, "status": status})
-@socketio.on("connect")
-def on_connect():
-    if not socket_authenticated():
-        disconnect()
-        return False
-    emit(
-        "status",
-        {
-            "msg": "Connected to CyberAudit live feed",
-            "time": datetime.datetime.now().isoformat(),
-        },
-    )
-@socketio.on("request_snapshot")
-def on_snapshot():
-    if not socket_authenticated():
-        disconnect()
-        return
-    with get_db() as conn:
-        events = [
+        rows = [
             dict(r)
             for r in conn.execute(
-                "SELECT * FROM live_events ORDER BY id DESC LIMIT 25"
+                "SELECT * FROM live_events ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         ]
-    emit("snapshot", events)
-_workers_started = False
-def start_background_workers():
-    init_db()
-    ensure_sample_playbooks()
-    if config.DEMO_MODE:
-        if db_is_empty():
-            seed_sample_data()
-        ensure_sample_reports()
-        threading.Thread(target=live_feed_simulator, daemon=True).start()
-        logger.warning("DEMO_MODE=1 — simulator active")
-    threading.Thread(target=inbox_poller, daemon=True).start()
-    threading.Thread(target=retention_worker, daemon=True).start()
-def ensure_workers():
-    global _workers_started
-    if _workers_started:
-        return
-    _workers_started = True
-    start_background_workers()
-if __name__ == "__main__":
-    ensure_workers()
-    print("=" * 60)
-    print(f"  {COMPANY['name']} - {COMPANY['product']} {COMPANY['version']}")
-    print(f"  http://{config.HOST}:{config.PORT}")
-    print("=" * 60)
-    socketio.run(
-        app,
-        host=config.HOST,
-        port=config.PORT,
-        debug=False,
-        allow_unsafe_werkzeug=True,
+    return jsonify(rows)
+@app.route("/api/sessions")
+@login_required
+def api_sessions():
+    with get_db() as conn:
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM audit_sessions ORDER BY start_time DESC"
+            ).fetchall()
+        ]
+    return jsonify(rows)
+@app.route("/api/modules")
+@login_required
+def api_modules():
+    with get_db() as conn:
+        rows = [dict(r) for r in conn.execute("SELECT * FROM module_status").fetchall()]
+    return jsonify(rows)
+@app.route("/api/me")
+@login_required
+def api_me():
+    return jsonify(
+        {
+            "username": session.get("username") or "anonymous",
+            "role": current_role(),
+            "auth_required": config.AUTH_REQUIRED,
+        }
     )
-else:
-    ensure_workers()
+@app.route("/api/findings")
+@login_required
+def list_findings():
+    session_id = request.args.get("session_id")
+    severity = request.args.get("severity")
+    cma = request.args.get("cma_section")
+    limit = min(request.args.get("limit", 200, type=int), 1000)
+    q = "SELECT * FROM findings WHERE 1=1"
+    args = []
+    if session_id:
+        q += " AND session_id=?"
+        args.append(session_id)
+    if severity:
+        q += " AND severity=?"
+        args.append(severity)
+    if cma:
+        q += " AND cma_section LIKE ?"
+        args.append(f"%{cma}%")
+    q += " ORDER BY id DESC LIMIT ?"

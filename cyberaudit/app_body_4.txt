@@ -1,0 +1,65 @@
+    args.append(limit)
+    with get_db() as conn:
+        rows = [dict(r) for r in conn.execute(q, args).fetchall()]
+    return jsonify(rows)
+@app.route("/api/sessions/<session_id>")
+@login_required
+def session_detail(session_id: str):
+    with get_db() as conn:
+        row = conn.execute(
+            "SELECT * FROM audit_sessions WHERE session_id=?", (session_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not_found"}), 404
+        findings = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM findings WHERE session_id=? ORDER BY id", (session_id,)
+            ).fetchall()
+        ]
+    return jsonify({"session": dict(row), "findings": findings, "role": current_role()})
+@app.route("/api/jobs")
+@login_required
+def list_jobs():
+    with get_db() as conn:
+        rows = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM audit_jobs ORDER BY id DESC LIMIT 50"
+            ).fetchall()
+        ]
+    return jsonify(rows)
+@app.route("/download/report/<path:filename>")
+@login_required
+def download_report(filename):
+    path = safe_file_under(config.REPORTS_DIR, filename)
+    if path is None:
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=path.name)
+@app.route("/download/playbook/<path:filename>")
+@login_required
+def download_playbook(filename):
+    path = safe_file_under(config.PLAYBOOKS_DIR, filename)
+    if path is None:
+        abort(404)
+    return send_file(path, as_attachment=True, download_name=path.name)
+@app.route("/api/ingest/event", methods=["POST"])
+@ingest_token_required
+def ingest_event():
+    data = request.get_json(silent=True) or {}
+    if not data.get("message") and not data.get("msg"):
+        return jsonify({"error": "message required"}), 400
+    event = insert_live_event(
+        module=data.get("module") or "pipeline",
+        message=data.get("message") or data.get("msg"),
+        severity=data.get("severity") or "info",
+        event_type=data.get("event_type") or "info",
+        details=data.get("details"),
+        timestamp=data.get("timestamp"),
+    )
+    return jsonify({"ok": True, "event": event}), 201
+@app.route("/api/ingest/module", methods=["POST"])
+@ingest_token_required
+def ingest_module():
+    data = request.get_json(silent=True) or {}
+    name = data.get("module_name") or data.get("module")

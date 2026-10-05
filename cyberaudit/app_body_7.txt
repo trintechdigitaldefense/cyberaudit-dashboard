@@ -1,0 +1,72 @@
+@app.route("/api/findings/<int:fid>/status", methods=["POST"])
+@login_required
+@operator_required
+def update_finding_status(fid: int):
+    data = request.get_json(silent=True) or {}
+    status = (data.get("status") or "").strip().lower()
+    if status not in ("open", "mitigated", "accepted", "false_positive"):
+        return jsonify({"error": "invalid status"}), 400
+    with get_db() as conn:
+        cur = conn.execute("UPDATE findings SET status=? WHERE id=?", (status, fid))
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "id": fid, "status": status})
+@socketio.on("connect")
+def on_connect():
+    if not socket_authenticated():
+        disconnect()
+        return False
+    emit(
+        "status",
+        {
+            "msg": "Connected to CyberAudit live feed",
+            "time": datetime.datetime.now().isoformat(),
+        },
+    )
+@socketio.on("request_snapshot")
+def on_snapshot():
+    if not socket_authenticated():
+        disconnect()
+        return
+    with get_db() as conn:
+        events = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM live_events ORDER BY id DESC LIMIT 25"
+            ).fetchall()
+        ]
+    emit("snapshot", events)
+_workers_started = False
+def start_background_workers():
+    init_db()
+    ensure_sample_playbooks()
+    if config.DEMO_MODE:
+        if db_is_empty():
+            seed_sample_data()
+        ensure_sample_reports()
+        threading.Thread(target=live_feed_simulator, daemon=True).start()
+        logger.warning("DEMO_MODE=1 — simulator active")
+    threading.Thread(target=inbox_poller, daemon=True).start()
+    threading.Thread(target=retention_worker, daemon=True).start()
+def ensure_workers():
+    global _workers_started
+    if _workers_started:
+        return
+    _workers_started = True
+    start_background_workers()
+if __name__ == "__main__":
+    ensure_workers()
+    print("=" * 60)
+    print(f"  {COMPANY['name']} - {COMPANY['product']} {COMPANY['version']}")
+    print(f"  http://{config.HOST}:{config.PORT}")
+    print("=" * 60)
+    socketio.run(
+        app,
+        host=config.HOST,
+        port=config.PORT,
+        debug=False,
+        allow_unsafe_werkzeug=True,
+    )
+else:
+    ensure_workers()

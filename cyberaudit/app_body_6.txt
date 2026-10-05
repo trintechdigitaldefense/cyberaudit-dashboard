@@ -1,0 +1,62 @@
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO audit_jobs (job_id, target, requested_by, status, created_at, notes) VALUES (?,?,?,?,?,?)",
+            (job_id, target, who, "queued", now, notes),
+        )
+        conn.commit()
+    job_path = config.JOBS_DIR / f"{job_id}.json"
+    job_path.write_text(json.dumps(job, indent=2), encoding="utf-8")
+    insert_live_event(
+        module="dashboard",
+        message=f"Audit job queued: {job_id} target={target}",
+        severity="info",
+        event_type="job",
+        details=job,
+    )
+    triggered = False
+    if config.AUDIT_TRIGGER_CMD:
+        try:
+            subprocess.Popen(
+                config.AUDIT_TRIGGER_CMD,
+                shell=True,
+                env={
+                    **os.environ,
+                    "CYBERAUDIT_JOB_ID": job_id,
+                    "CYBERAUDIT_TARGET": target,
+                },
+            )
+            triggered = True
+        except Exception as exc:
+            logger.error("Audit trigger failed: %s", exp)
+    return jsonify({"ok": True, "job": job, "trigger_invoked": triggered}), 201
+@app.route("/api/playbooks/<path:name>/trigger", methods=["POST"])
+@login_required
+@operator_required
+def trigger_playbook(name: str):
+    path = safe_file_under(config.PLAYBOOKS_DIR, name)
+    if path is None:
+        return jsonify({"error": "playbook not found"}), 404
+    data = request.get_json(silent=True) or {}
+    host = (data.get("host") or data.get("target") or "").strip()
+    who = session.get("username") or "operator"
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    job_id = f"PB-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+    payload = {
+        "type": "playbook_trigger",
+        "job_id": job_id,
+        "playbook": path.name,
+        "host": host,
+        "requested_by": who,
+        "created_at": now,
+        "notes": data.get("notes") or "",
+    }
+    out = config.JOBS_DIR / f"{job_id}.json"
+    out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    insert_live_event(
+        module="incident_response_module",
+        message=f"Playbook triggered: {path.name}" + (f" host={host}" if host else ""),
+        severity="high",
+        event_type="playbook",
+        details=payload,
+    )
+    return jsonify({"ok": True, "job": payload, "job_file": str(out)}), 201

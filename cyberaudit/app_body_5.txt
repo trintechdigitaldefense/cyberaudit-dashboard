@@ -1,0 +1,62 @@
+    if not name:
+        return jsonify({"error": "module_name required"}), 400
+    row = upsert_module_status(
+        module_name=name,
+        status=data.get("status") or "idle",
+        last_result=data.get("last_result") or data.get("result") or "",
+        version=data.get("version") or "",
+        last_run=data.get("last_run"),
+    )
+    return jsonify({"ok": True, "module": row}), 201
+@app.route("/api/ingest/session", methods=["POST"])
+@ingest_token_required
+def ingest_session():
+    data = request.get_json(silent=True) or {}
+    try:
+        row = upsert_audit_session(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"ok": True, "session": row}), 201
+@app.route("/api/findings", methods=["POST"])
+@ingest_token_required
+def ingest_finding_route():
+    data = request.get_json(silent=True) or {}
+    fid = insert_finding(data)
+    return jsonify({"ok": True, "id": fid}), 201
+@app.route("/api/events/<int:event_id>/ack", methods=["POST"])
+@login_required
+@operator_required
+def ack_event(event_id: int):
+    who = session.get("username") or "operator"
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with get_db() as conn:
+        cur = conn.execute(
+            "UPDATE live_events SET acknowledged=1, acknowledged_by=?, acknowledged_at=? WHERE id=?",
+            (who, now, event_id),
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "not_found"}), 404
+    return jsonify({"ok": True, "id": event_id, "acknowledged_by": who})
+@app.route("/api/jobs/start_audit", methods=["POST"])
+@login_required
+@operator_required
+def start_audit():
+    data = request.get_json(silent=True) or {}
+    target = (data.get("target") or "").strip()
+    if not target:
+        return jsonify({"error": "target required"}), 400
+    job_id = f"JOB-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(3)}"
+    who = session.get("username") or "operator"
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    notes = (data.get("notes") or "")[:2000]
+    job = {
+        "job_id": job_id,
+        "target": target,
+        "requested_by": who,
+        "status": "queued",
+        "created_at": now,
+        "notes": notes,
+        "modules": data.get("modules")
+        or ["nmap_module", "openvas_module", "tt_compliance_mapper"],
+    }
