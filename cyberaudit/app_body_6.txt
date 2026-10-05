@@ -27,7 +27,7 @@
             )
             triggered = True
         except Exception as exc:
-            logger.error("Audit trigger failed: %s", exp)
+            logger.error("Audit trigger failed: %s", exc)
     return jsonify({"ok": True, "job": job, "trigger_invoked": triggered}), 201
 @app.route("/api/playbooks/<path:name>/trigger", methods=["POST"])
 @login_required
