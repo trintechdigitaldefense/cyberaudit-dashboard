@@ -1,19 +1,28 @@
-# Canonical dashboard_app.py
+# Sync remaining modular files (v2.4.0-p3)
 
-The full **v2.3.0-p2** application lives in the working tree used to develop this repo.
+These files are complete in the build workspace and need a final `git push` from a machine that has them:
 
-**Local path (source of truth until this file is replaced on GitHub):**
-
-`/home/workdir/artifacts/cyber_audit_dashboard/dashboard_app.py`
-
-To publish from a machine with this checkout:
-
-```bash
-cp /home/workdir/artifacts/cyber_audit_dashboard/dashboard_app.py .
-cp /home/workdir/artifacts/cyber_audit_dashboard/templates/index.html templates/
-git add dashboard_app.py templates/index.html
-git commit -m "Sync P0-P2 dashboard_app and overview UI"
-git push origin main
+```
+/home/workdir/artifacts/cyber_audit_dashboard/
+  dashboard_app.py          # thin entry (imports cyberaudit.*)
+  cyberaudit/db.py
+  cyberaudit/workers.py
+  templates/findings.html
+  templates/base.html       # Findings nav link
+  templates/playbooks.html  # Trigger button
+  templates/index.html      # Start audit form
 ```
 
-Features in that file: P0 security, P1 ingest/inbox/retention, P2 ack/jobs/findings/RBAC.
+```bash
+SRC=/home/workdir/artifacts/cyber_audit_dashboard
+cp $SRC/dashboard_app.py .
+cp $SRC/cyberaudit/db.py cyberaudit/
+cp $SRC/cyberaudit/workers.py cyberaudit/
+cp $SRC/templates/findings.html templates/
+cp $SRC/templates/base.html templates/
+cp $SRC/templates/playbooks.html templates/
+cp $SRC/templates/index.html templates/
+git add -A && git commit -m "Complete P3 modular app + findings UI" && git push
+```
+
+Already on GitHub: `cyberaudit/__init__.py`, `config.py`, `security.py`, Dockerfile, CI, tests, pipeline client, README.
