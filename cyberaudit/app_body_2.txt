@@ -1,0 +1,80 @@
+    return render_template("reports.html", company=COMPANY, reports=report_list)
+@app.route("/playbooks")
+@login_required
+def playbooks_page():
+    files = sorted(config.PLAYBOOKS_DIR.glob("*.md"))
+    pb_list = []
+    for f in files:
+        if f.is_file():
+            pb_list.append(
+                {
+                    "name": f.name,
+                    "preview": f.read_text(encoding="utf-8")[:400] + "...",
+                    "size": f.stat().st_size,
+                }
+            )
+    return render_template("playbooks.html", company=COMPANY, playbooks=pb_list)
+@app.route("/playbook/<path:filename>")
+@login_required
+def view_playbook(filename):
+    path = safe_file_under(config.PLAYBOOKS_DIR, filename)
+    if path is None:
+        abort(404)
+    return render_template(
+        "playbook_view.html",
+        company=COMPANY,
+        name=path.name,
+        content=path.read_text(encoding="utf-8"),
+    )
+@app.route("/about")
+@login_required
+def about_page():
+    return render_template("about.html", company=COMPANY)
+@app.route("/health")
+def health():
+    db_ok = False
+    try:
+        with get_db() as conn:
+            conn.execute("SELECT 1").fetchone()
+            db_ok = True
+    except Exception:
+        pass
+    return (
+        jsonify(
+            {
+                "status": "ok" if db_ok else "degraded",
+                "service": "CyberAudit Dashboard",
+                "version": COMPANY["version"],
+                "port": config.PORT,
+                "db": db_ok,
+                "auth_required": config.AUTH_REQUIRED,
+                "demo_mode": config.DEMO_MODE,
+                "ingest_enabled": bool(config.INGEST_TOKEN),
+            }
+        ),
+        200 if db_ok else 503,
+    )
+@app.route("/api/status")
+@login_required
+def api_status():
+    with get_db() as conn:
+        modules = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM module_status ORDER BY module_name"
+            ).fetchall()
+        ]
+        recent = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM live_events ORDER BY id DESC LIMIT 30"
+            ).fetchall()
+        ]
+        sessions = [
+            dict(r)
+            for r in conn.execute(
+                "SELECT * FROM audit_sessions ORDER BY start_time DESC LIMIT 10"
+            ).fetchall()
+        ]
+    return jsonify(
+        {
