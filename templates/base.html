@@ -74,9 +74,10 @@
           <a href="/playbooks" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path.startswith('/playbook') %}bg-cyber-700 text-cyber-accent{% endif %}">Playbooks</a>
           <a href="/about" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/about' %}bg-cyber-700 text-cyber-accent{% endif %}">About</a>
         </div>
-        <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+        <div class="flex items-center gap-3 text-xs font-mono text-slate-400">
           <span class="w-2 h-2 rounded-full bg-cyber-accent pulse-dot"></span>
           <span id="clock">--:--:--</span>
+          <a href="/logout" class="text-slate-500 hover:text-cyber-accent transition" title="Sign out">Logout</a>
         </div>
       </div>
     </div>
@@ -92,7 +93,7 @@
         © 2026 {{ company.name }} · {{ company.product }} v{{ company.version }} · Reg {{ company.reg_number }}
       </div>
       <div class="font-mono">
-        Port 1881 · Trinidad &amp; Tobago · Computer Misuse Act Chap. 11:17
+        Port 1881 · Trinidad & Tobago · Computer Misuse Act Chap. 11:17
       </div>
     </div>
   </footer>
