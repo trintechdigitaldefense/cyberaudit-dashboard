@@ -1,11 +1,8 @@
-"""CyberAudit Flask app loader."""
-from __future__ import annotations
-import base64
-import zlib
-from cyberaudit.app_b64_a import PARTS as A
-from cyberaudit.app_b64_b import PARTS as B
-
-_code = zlib.decompress(base64.b64decode("".join(A + B))).decode("utf-8")
+"""CyberAudit Flask application."""
+from cyberaudit.app_src_0 import SRC as S0
+from cyberaudit.app_src_1 import SRC as S1
+from cyberaudit.app_src_2 import SRC as S2
+_code = S0 + S1 + S2
 _g = {"__name__": __name__, "__file__": __file__}
 exec(compile(_code, __file__, "exec"), _g)
 for _k, _v in _g.items():
