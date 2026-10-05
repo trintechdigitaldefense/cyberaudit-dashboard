@@ -20,8 +20,8 @@ JOBS_DIR = Path(os.environ.get("CYBERAUDIT_JOBS_DIR", DATA_DIR / "jobs")).resolv
 HOST = os.environ.get("CYBERAUDIT_HOST", "127.0.0.1")
 PORT = int(os.environ.get("CYBERAUDIT_PORT", "1881"))
 
-AUTH_USER = os.environ.get("CYBERAUDIT_USER", "").strip()
-AUTH_PASSWORD = os.environ.get("CYBERAUDIT_PASSWORD", "").strip()
+AUTH_USER = os.environ.get("CYBERAUDIT_USER", "admin").strip()
+AUTH_PASSWORD = os.environ.get("CYBERAUDIT_PASSWORD", "admin").strip()
 VIEWER_USER = os.environ.get("CYBERAUDIT_VIEWER_USER", "").strip()
 VIEWER_PASSWORD = os.environ.get("CYBERAUDIT_VIEWER_PASSWORD", "").strip()
 AUTH_REQUIRED = bool(AUTH_USER and AUTH_PASSWORD) or bool(VIEWER_USER and VIEWER_PASSWORD)
