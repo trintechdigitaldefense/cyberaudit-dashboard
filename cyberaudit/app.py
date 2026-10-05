@@ -1,11 +1,6 @@
 """CyberAudit Flask application."""
-from cyberaudit.app_src_0 import SRC as S0
-from cyberaudit.app_src_1 import SRC as S1
-from cyberaudit.app_src_2 import SRC as S2
-from cyberaudit.app_src_3 import SRC as S3
-_code = S0 + S1 + S2 + S3
-_g = {"__name__": __name__, "__file__": __file__}
-exec(compile(_code, __file__, "exec"), _g)
-for _k, _v in _g.items():
-    if not _k.startswith("_"):
-        globals()[_k] = _v
+from pathlib import Path
+
+_dir = Path(__file__).parent
+_code = "".join((_dir / f"app_body_{i}.txt").read_text(encoding="utf-8") for i in range(4))
+exec(compile(_code, str(Path(__file__).with_name("app_impl.py")), "exec"), globals())
