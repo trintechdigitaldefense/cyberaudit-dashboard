@@ -1,0 +1,71 @@
+            p.write_text(body, encoding="utf-8")
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if not config.AUTH_REQUIRED:
+        return redirect(url_for("index"))
+    error = None
+    if request.method == "POST":
+        user = request.form.get("username", "")
+        password = request.form.get("password", "")
+        role = None
+        if (
+            config.AUTH_USER
+            and config.AUTH_PASSWORD
+            and const_eq(user, config.AUTH_USER)
+            and const_eq(password, config.AUTH_PASSWORD)
+        ):
+            role = "operator"
+        elif (
+            config.VIEWER_USER
+            and config.VIEWER_PASSWORD
+            and const_eq(user, config.VIEWER_USER)
+            and const_eq(password, config.VIEWER_PASSWORD)
+        ):
+            role = "viewer"
+        if role:
+            session.clear()
+            session["authenticated"] = True
+            session["username"] = user
+            session["role"] = role
+            session.permanent = True
+            app.permanent_session_lifetime = datetime.timedelta(hours=8)
+            nxt = request.args.get("next") or url_for("index")
+            if not nxt.startswith("/"):
+                nxt = url_for("index")
+            return redirect(nxt)
+        error = "Invalid credentials"
+        time.sleep(0.4)
+    return render_template("login.html", company=COMPANY, error=error)
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login") if config.AUTH_REQUIRED else url_for("index"))
+@app.route("/")
+@login_required
+def index():
+    return render_template("index.html", company=COMPANY)
+@app.route("/live")
+@login_required
+def live_page():
+    return render_template("live.html", company=COMPANY)
+@app.route("/findings")
+@login_required
+def findings_page():
+    return render_template("findings.html", company=COMPANY)
+@app.route("/reports")
+@login_required
+def reports_page():
+    files = sorted(
+        config.REPORTS_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True
+    )
+    report_list = [
+        {
+            "name": f.name,
+            "size": f.stat().st_size,
+            "mtime": datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime(
+                "%Y-%m-%d %H:%M"
+            ),
+        }
+        for f in files
+        if f.is_file()
+    ]
