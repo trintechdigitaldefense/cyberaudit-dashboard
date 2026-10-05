@@ -1,0 +1,81 @@
+"""Flask application factory and routes."""
+from __future__ import annotations
+import datetime
+import json
+import logging
+import os
+import secrets
+import subprocess
+import threading
+import time
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
+from flask_socketio import SocketIO, disconnect, emit
+from cyberaudit import config
+from cyberaudit.config import ensure_dirs
+from cyberaudit.db import (
+    db_is_empty,
+    get_db,
+    init_db,
+    insert_finding,
+    insert_live_event,
+    seed_sample_data,
+    set_socketio,
+    upsert_audit_session,
+    upsert_module_status,
+)
+from cyberaudit.security import (
+    const_eq,
+    current_role,
+    ingest_token_required,
+    login_required,
+    operator_required,
+    safe_file_under,
+    socket_authenticated,
+)
+from cyberaudit.workers import inbox_poller, live_feed_simulator, retention_worker
+ensure_dirs()
+app = Flask(__name__)
+app.config["SECRET_KEY"] = config.SECRET_KEY
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+if config.COOKIE_SECURE:
+    app.config["SESSION_COOKIE_SECURE"] = True
+socketio = SocketIO(
+    app, cors_allowed_origins=config.ALLOWED_ORIGINS, async_mode="threading"
+)
+set_socketio(socketio)
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger("CyberAuditDashboard")
+COMPANY = config.COMPANY
+def ensure_sample_reports():
+    if not config.DEMO_MODE:
+        return
+    for fname in [
+        "CyberAudit_Report_AUD-20260829-001.pdf",
+        "CyberAudit_Report_AUD-20260828-003.pdf",
+    ]:
+        path = config.REPORTS_DIR / fname
+        if not path.exists():
+            path.write_bytes(b"%PDF-1.4 placeholder CyberAudit report\n")
+def ensure_sample_playbooks():
+    samples = {
+        "PB-IR-001_Containment_HighSeverity.md": "# IR High Severity\nIsolate host, notify SOC, map CMA ss.3/6/7.\n",
+        "PB-EXFIL-002_DataExfiltration.md": "# Data Exfiltration\nQuarantine source, notify DPO, capture evidence.\n",
+        "PB-COMP-003_CMA_Section6.md": "# CMA Section 6\nTag unauthorized access findings to s.6.\n",
+    }
+    for name, body in samples.items():
+        p = config.PLAYBOOKS_DIR / name
+        if not p.exists():
