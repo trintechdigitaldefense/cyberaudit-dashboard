@@ -44,7 +44,13 @@ from cyberaudit.security import (
 )
 from cyberaudit.workers import inbox_poller, live_feed_simulator, retention_worker
 ensure_dirs()
-app = Flask(__name__)
+import pathlib as _pathlib
+_ROOT = _pathlib.Path(__file__).resolve().parent.parent
+app = Flask(
+    __name__,
+    template_folder=str(_ROOT / "templates"),
+    root_path=str(_ROOT),
+)
 app.config["SECRET_KEY"] = config.SECRET_KEY
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.config["SESSION_COOKIE_HTTPONLY"] = True
