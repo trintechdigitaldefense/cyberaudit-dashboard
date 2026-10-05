@@ -2,19 +2,41 @@
 
 **TrinTech Digital Defense** · **v2.4.0-p3** · Port **1881**
 
-Modular: `dashboard_app.py` + `cyberaudit/` package.
-
-| Tier | Features |
-|------|----------|
-| P0 | Auth, path-safe downloads, env secrets, localhost bind |
-| P1 | Ingest APIs, inbox, retention, Docker/gunicorn |
-| P2 | Ack, start-audit jobs, findings API, RBAC, CI |
-| P3 | Findings UI, playbook Trigger, finding status updates |
+## Clone and run
 
 ```bash
-export DEMO_MODE=1 CYBERAUDIT_USER=admin CYBERAUDIT_PASSWORD=change-me
+git clone https://github.com/trintechdigitaldefense/cyberaudit-dashboard.git
+cd cyberaudit-dashboard
+
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+export DEMO_MODE=1
+export CYBERAUDIT_USER=admin
+export CYBERAUDIT_PASSWORD='change-me-now'
 export CYBERAUDIT_SECRET=$(openssl rand -hex 32)
-pip install -r requirements.txt && python3 dashboard_app.py
+export CYBERAUDIT_INGEST_TOKEN=$(openssl rand -hex 24)
+
+python3 dashboard_app.py
 ```
 
-`/findings` · `POST /api/playbooks/<name>/trigger` (operator)
+Open **http://127.0.0.1:1881** — login with `admin` / your password.
+
+## Layout
+
+- `dashboard_app.py` — entrypoint
+- `cyberaudit/` — package (`config`, `security`, `db`, `workers`, `app.py` + `app_body_0..7.txt`)
+- `templates/` — UI (Overview, Live, Findings, Reports, Playbooks)
+
+## Features (P0–P3)
+
+- Auth (operator / viewer), path-safe downloads, env secrets
+- Pipeline ingest APIs + inbox + retention
+- Start audit jobs, ack events, playbook trigger, findings UI
+
+## Production
+
+```bash
+export DEMO_MODE=0
+gunicorn --worker-class eventlet -w 1 -b 127.0.0.1:1881 dashboard_app:app
+```
