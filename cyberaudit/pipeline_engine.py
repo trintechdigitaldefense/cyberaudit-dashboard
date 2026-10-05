@@ -93,7 +93,7 @@ def recon_scan(hosts: list[str]) -> list[dict]:
                         svc = parts[2] if len(parts) > 2 else SERVICE_HINTS.get(int(port), "unknown")
                         open_ports.append({"host": host, "port": port, "service": svc, "banner": "", "state": "open"})
             except Exception as exc:
-                logger.warning("nmap failed %s: %s", host, exp)
+                logger.warning("nmap failed %s: %s", host, exc)
     else:
         _ev("nmap_module", "TCP connect scanner (nmap optional)")
         with ThreadPoolExecutor(max_workers=32) as pool:
