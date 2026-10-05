@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | CyberAudit | TrinTech Digital Defense</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            cyber: { 950: '#05080f', 900: '#0a101c', 800: '#111827', 700: '#1a2438', accent: '#00d4aa', danger: '#ef4444' }
+          },
+          fontFamily: { sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'], mono: ['IBM Plex Mono', 'monospace'] }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #05080f; color: #e2e8f0; }
+    .glass { background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(0, 212, 170, 0.15); }
+  </style>
+</head>
+<body class="font-sans min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <div class="inline-flex w-12 h-12 rounded-lg bg-cyber-accent/20 items-center justify-center mb-3">
+        <svg class="w-7 h-7 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+      </div>
+      <h1 class="text-xl font-semibold text-white">CyberAudit</h1>
+      <p class="text-xs text-cyber-accent/80 font-mono mt-1">{{ company.name }}</p>
+    </div>
+
+    <div class="glass rounded-xl p-6 shadow-xl">
+      <h2 class="text-sm font-medium text-slate-300 mb-4">Operator sign-in</h2>
+      {% if error %}
+      <div class="mb-4 text-sm text-cyber-danger bg-red-900/20 border border-red-800/40 rounded px-3 py-2">{{ error }}</div>
+      {% endif %}
+      <form method="post" action="{{ url_for('login', next=request.args.get('next', '')) }}" class="space-y-4">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1" for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required
+                 class="w-full rounded-lg bg-cyber-900 border border-cyber-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-accent">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required
+                 class="w-full rounded-lg bg-cyber-900 border border-cyber-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-accent">
+        </div>
+        <button type="submit"
+                class="w-full rounded-lg bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 transition py-2.5 text-sm font-medium">
+          Sign in
+        </button>
+      </form>
+    </div>
+    <p class="text-center text-[10px] text-slate-600 mt-6 font-mono">
+      Secured session · Computer Misuse Act Chap. 11:17
+    </p>
+  </div>
+</body>
+</html>
