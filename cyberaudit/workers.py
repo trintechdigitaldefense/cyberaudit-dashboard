@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import random
@@ -57,16 +58,108 @@ def process_inbox_file(path: Path) -> bool:
         return False
 
 
+_ALWAYS_ON = (
+    "continuous_ids_module",
+    "data_exfiltration_module",
+    "regional_threat_intel",
+)
+_BATCH = (
+    "nmap_module",
+    "openvas_module",
+    "tt_compliance_mapper",
+    "patch_verification_module",
+    "pdf_report_module",
+    "incident_response_module",
+    "database_module",
+    "diagnostics_module",
+)
+_ALL_MODULES = _ALWAYS_ON + _BATCH
+
+_MODULE_RESULTS = {
+    "nmap_module": [
+        "Ports 22,80,443 open - service versions collected",
+        "Discovery complete: 24 hosts up on target range",
+        "SYN scan finished - 3 unexpected services flagged",
+    ],
+    "openvas_module": [
+        "3 high, 7 medium findings published",
+        "GVM scan finished - CVE enrichment complete",
+        "Vulnerability scorecard updated for session",
+    ],
+    "tt_compliance_mapper": [
+        "Mapped findings to CMA Sections 3, 6, 7",
+        "Statutory risk matrix regenerated",
+        "Compliance score recalculated",
+    ],
+    "regional_threat_intel": [
+        "TT-CSIRT advisory ingested",
+        "CARICOM IMPACS feed refresh OK",
+        "IOC match against regional C2 list",
+    ],
+    "patch_verification_module": [
+        "Baseline drift: 2 packages pending",
+        "Patch verification passed for critical hosts",
+        "Remediation lag report generated",
+    ],
+    "pdf_report_module": [
+        "Executive PDF report rendered",
+        "Report package staged in reports/",
+        "Client summary exported",
+    ],
+    "incident_response_module": [
+        "No active containment jobs",
+        "Playbook PB-IR-001 staged",
+        "IR queue idle - ready",
+    ],
+    "data_exfiltration_module": [
+        "Outbound flow baseline within thresholds",
+        "Anomalous DNS tunnel candidate blocked",
+        "Monitoring egress on 3 interfaces",
+    ],
+    "continuous_ids_module": [
+        "Log analysis active - 0 critical alerts",
+        "Behavioral anomaly score normal",
+        "Syslog ingest healthy",
+    ],
+    "database_module": [
+        "Session archived to SQLite",
+        "WAL checkpoint complete",
+        "Audit history indexed",
+    ],
+    "diagnostics_module": [
+        "All binaries OK",
+        "Dependency check passed",
+        "Self-heal: no repairs needed",
+    ],
+}
+
+
+def activate_demo_pipeline() -> None:
+    """Refresh all 11 modules with live timestamps so UI is not stuck idle."""
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    for name in _ALWAYS_ON:
+        upsert_module_status(
+            module_name=name,
+            status="running",
+            last_result=random.choice(_MODULE_RESULTS.get(name, ["Active"])),
+            last_run=now,
+            version="",
+        )
+    for name in _BATCH:
+        upsert_module_status(
+            module_name=name,
+            status=random.choice(["idle", "ok", "idle"]),
+            last_result=random.choice(_MODULE_RESULTS.get(name, ["Ready"])),
+            last_run=now,
+            version="",
+        )
+    logger.info("Demo pipeline activated - sensors running, batch modules ready")
+
+
 def live_feed_simulator() -> None:
     global _simulator_running
     _simulator_running = True
-    modules = [
-        "continuous_ids_module",
-        "data_exfiltration_module",
-        "regional_threat_intel",
-        "nmap_module",
-        "openvas_module",
-    ]
+    activate_demo_pipeline()
     severities = ["info", "low", "medium", "high", "critical"]
     messages = [
         "Behavioral baseline deviation detected",
@@ -76,18 +169,49 @@ def live_feed_simulator() -> None:
         "TT-CSIRT feed update received",
         "Anomalous DNS query pattern observed",
         "Session archival complete",
+        "Patch drift detected on critical host",
+        "Playbook trigger acknowledged",
+        "GVM socket health check OK",
     ]
+    tick = 0
     while _simulator_running:
-        time.sleep(random.uniform(4.0, 11.0))
+        time.sleep(random.uniform(3.5, 8.0))
         if not config.DEMO_MODE:
             break
+        tick += 1
         try:
+            mod = random.choice(_ALL_MODULES)
+            sev = random.choices(severities, weights=[35, 25, 22, 12, 6])[0]
             insert_live_event(
-                module=random.choice(modules),
+                module=mod,
                 message=random.choice(messages),
-                severity=random.choices(severities, weights=[40, 25, 20, 10, 5])[0],
+                severity=sev,
                 details={"sim": True, "source": "dashboard_simulator"},
             )
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            for name in _ALWAYS_ON:
+                upsert_module_status(
+                    module_name=name,
+                    status="running",
+                    last_result=random.choice(_MODULE_RESULTS.get(name, ["Active"])),
+                    last_run=now,
+                )
+            if tick % 3 == 0:
+                batch = random.choice(_BATCH)
+                upsert_module_status(
+                    module_name=batch,
+                    status="running",
+                    last_result=random.choice(_MODULE_RESULTS.get(batch, ["Running"])),
+                    last_run=now,
+                )
+            if tick % 5 == 0:
+                batch = random.choice(_BATCH)
+                upsert_module_status(
+                    module_name=batch,
+                    status=random.choice(["ok", "idle"]),
+                    last_result=random.choice(_MODULE_RESULTS.get(batch, ["Complete"])),
+                    last_run=now,
+                )
         except Exception as exc:
             logger.error("Simulator insert failed: %s", exc)
 
@@ -121,5 +245,5 @@ def retention_worker() -> None:
             if n:
                 logger.info("Pruned %s live_events", n)
         except Exception as exc:
-            logger.error("Retention error: %s", exc)
+            logger.error("Retention error: %s", exp)
         time.sleep(max(60, config.RETENTION_INTERVAL_SECONDS))
