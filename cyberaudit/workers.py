@@ -212,8 +212,8 @@ def live_feed_simulator() -> None:
                     last_result=random.choice(_MODULE_RESULTS.get(batch, ["Complete"])),
                     last_run=now,
                 )
-        except Exception as exc:
-            logger.error("Simulator insert failed: %s", exc)
+        except Exception as exp:
+            logger.error("Simulator insert failed: %s", exp)
 
 
 def inbox_poller() -> None:
@@ -233,8 +233,8 @@ def inbox_poller() -> None:
                         path.unlink()
                     except Exception:
                         pass
-        except Exception as exc:
-            logger.error("Inbox poller error: %s", exc)
+        except Exception as exp:
+            logger.error("Inbox poller error: %s", exp)
         time.sleep(max(1.0, config.INBOX_POLL_SECONDS))
 
 
@@ -244,6 +244,6 @@ def retention_worker() -> None:
             n = prune_old_events()
             if n:
                 logger.info("Pruned %s live_events", n)
-        except Exception as exc:
+        except Exception as exp:
             logger.error("Retention error: %s", exp)
         time.sleep(max(60, config.RETENTION_INTERVAL_SECONDS))
