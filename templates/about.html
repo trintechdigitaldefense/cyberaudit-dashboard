@@ -65,19 +65,27 @@
         </div>
         <div>
           <dt class="text-slate-500 text-xs">Phone</dt>
-          <dd class="text-slate-200 mt-0.5 font-mono">{{ company.phone }}</dd>
+          <dd class="text-slate-200 mt-0.5 font-mono">
+            <a href="tel:+18683620679" class="hover:underline">{{ company.phone }}</a>
+          </dd>
         </div>
         <div>
-          <dt class="text-slate-500 text-xs">Operations</dt>
-          <dd class="text-cyber-accent mt-0.5">{{ company.email }}</dd>
+          <dt class="text-slate-500 text-xs">Email</dt>
+          <dd class="text-cyber-accent mt-0.5">
+            <a href="mailto:{{ company.email }}" class="hover:underline">{{ company.email }}</a>
+          </dd>
         </div>
         <div>
           <dt class="text-slate-500 text-xs">Support</dt>
-          <dd class="text-cyber-accent mt-0.5">{{ company.support }}</dd>
+          <dd class="text-cyber-accent mt-0.5">
+            <a href="mailto:{{ company.support }}" class="hover:underline">{{ company.support }}</a>
+          </dd>
         </div>
         <div>
           <dt class="text-slate-500 text-xs">Web</dt>
-          <dd class="text-slate-200 mt-0.5">{{ company.website }}</dd>
+          <dd class="text-slate-200 mt-0.5">
+            <a href="{{ company.website }}" target="_blank" rel="noopener" class="text-cyber-accent hover:underline">{{ company.website }}</a>
+          </dd>
         </div>
         <div>
           <dt class="text-slate-500 text-xs">Registration</dt>

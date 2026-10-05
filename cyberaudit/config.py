@@ -55,7 +55,9 @@ else:
     ]
 
 COOKIE_SECURE = os.environ.get("CYBERAUDIT_COOKIE_SECURE", "").strip().lower() in (
-    "1", "true", "yes",
+    "1",
+    "true",
+    "yes",
 )
 
 COMPANY = {
@@ -64,11 +66,11 @@ COMPANY = {
     "tagline": "Caribbean Cyber Resilience • Trinidad & Tobago",
     "product": "CyberAudit",
     "version": "2.4.0-p3",
-    "address": "Level 3, Maritime Centre, 29 Tenth Avenue, Barataria, Trinidad and Tobago",
-    "phone": "+1 (868) 555-0142",
-    "email": "ops@trintech.digital",
-    "support": "support@trintech.digital",
-    "website": "https://trintech.digital",
+    "address": "Remote operations · Trinidad and Tobago",
+    "phone": "1-868-362-0679",
+    "email": "trintechdigitaldefense@gmail.com",
+    "support": "trintechdigitaldefense@gmail.com",
+    "website": "https://trintechdigitaldefense.github.io",
     "reg_number": "TT-C-2023-88421",
     "compliance": [
         "Trinidad and Tobago Computer Misuse Act, Chap. 11:17 (Sections 3, 6, 7)",
