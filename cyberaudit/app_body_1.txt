@@ -5,8 +5,8 @@ def login():
         return redirect(url_for("index"))
     error = None
     if request.method == "POST":
-        user = request.form.get("username", "")
-        password = request.form.get("password", "")
+        user = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
         role = None
         if (
             config.AUTH_USER

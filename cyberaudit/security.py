@@ -13,7 +13,17 @@ from cyberaudit import config
 
 
 def const_eq(a: str, b: str) -> bool:
-    return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+    """Constant-time string compare; never raises on length mismatch."""
+    if a is None or b is None:
+        return False
+    a = str(a)
+    b = str(b)
+    if len(a) != len(b):
+        return False
+    try:
+        return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def current_role() -> str:
