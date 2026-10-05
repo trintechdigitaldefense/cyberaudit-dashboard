@@ -1,39 +1,20 @@
 # CyberAudit Operations Dashboard
 
-**TrinTech Digital Defense** · Port **1881** · **v2.3.0-p2**
+**TrinTech Digital Defense** · **v2.4.0-p3** · Port **1881**
+
+Modular: `dashboard_app.py` + `cyberaudit/` package.
 
 | Tier | Features |
 |------|----------|
-| **P0** | Session auth, path-safe downloads, env secrets/CORS, localhost bind, demo-gated simulator |
-| **P1** | Pipeline ingest APIs, JSON inbox, event retention, Docker/gunicorn |
-| **P2** | Operator ack, start-audit jobs, findings API, viewer/operator RBAC, CI |
-
-## Quick start (demo)
+| P0 | Auth, path-safe downloads, env secrets, localhost bind |
+| P1 | Ingest APIs, inbox, retention, Docker/gunicorn |
+| P2 | Ack, start-audit jobs, findings API, RBAC, CI |
+| P3 | Findings UI, playbook Trigger, finding status updates |
 
 ```bash
-export DEMO_MODE=1
-export CYBERAUDIT_USER=admin
-export CYBERAUDIT_PASSWORD='change-me-now'
+export DEMO_MODE=1 CYBERAUDIT_USER=admin CYBERAUDIT_PASSWORD=change-me
 export CYBERAUDIT_SECRET=$(openssl rand -hex 32)
-export CYBERAUDIT_INGEST_TOKEN=$(openssl rand -hex 24)
-python3 -m pip install -r requirements.txt
-python3 dashboard_app.py
+pip install -r requirements.txt && python3 dashboard_app.py
 ```
 
-## Operator actions (P2)
-
-- `POST /api/events/<id>/ack` — acknowledge alert (operator only)
-- `POST /api/jobs/start_audit` — `{target}` → `data/jobs/JOB-*.json` + optional trigger cmd
-- `GET /api/jobs` / `GET /api/findings` / `GET /api/sessions/<id>` / `GET /api/me`
-
-RBAC: operator = `CYBERAUDIT_USER`; viewer = `CYBERAUDIT_VIEWER_USER`.
-
-## Pipeline ingest (P1)
-
-`X-CyberAudit-Token` + `/api/ingest/*` or drop JSON in `CYBERAUDIT_INBOX_DIR`.
-
-## Production
-
-```bash
-gunicorn --worker-class eventlet -w 1 -b 127.0.0.1:1881 dashboard_app:app
-```
+`/findings` · `POST /api/playbooks/<name>/trigger` (operator)
