@@ -24,8 +24,8 @@ _simulator_running = False
 def process_inbox_file(path: Path) -> bool:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        logger.error("Inbox parse failed %s: %s", path.name, exp)
+    except Exception as e:
+        logger.error("Inbox parse failed %s: %s", path.name, e)
         return False
     kind = (data.get("type") or data.get("kind") or "event").lower()
     try:
@@ -60,8 +60,8 @@ def process_inbox_file(path: Path) -> bool:
             logger.warning("Unknown inbox type %s in %s", kind, path.name)
             return False
         return True
-    except Exception as exc:
-        logger.error("Inbox apply failed %s: %s", path.name, exp)
+    except Exception as e:
+        logger.error("Inbox apply failed %s: %s", path.name, e)
         return False
 
 
@@ -70,15 +70,15 @@ def _mark_job_status(job_id: str, status: str) -> None:
         with get_db() as conn:
             conn.execute("UPDATE audit_jobs SET status=? WHERE job_id=?", (status, job_id))
             conn.commit()
-    except Exception as exc:
-        logger.error("job status update failed: %s", exp)
+    except Exception as e:
+        logger.error("job status update failed: %s", e)
 
 
 def process_job_file(path: Path) -> bool:
     try:
         job = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        logger.error("Job parse failed %s: %s", path.name, exp)
+    except Exception as e:
+        logger.error("Job parse failed %s: %s", path.name, e)
         return False
     if (job.get("type") or "") == "playbook_trigger":
         insert_live_event(
@@ -120,12 +120,12 @@ def process_job_file(path: Path) -> bool:
             details=result,
         )
         return True
-    except Exception as exc:
-        logger.exception("Audit job %s failed: %s", job_id, exp)
+    except Exception as e:
+        logger.exception("Audit job %s failed: %s", job_id, e)
         _mark_job_status(job_id, "failed")
         insert_live_event(
             module="dashboard",
-            message=f"Audit job failed: {job_id} — {exc}",
+            message=f"Audit job failed: {job_id} — {e}",
             severity="high",
             event_type="job",
         )
@@ -154,8 +154,8 @@ def job_runner() -> None:
                         path.unlink()
                     except Exception:
                         pass
-        except Exception as exc:
-            logger.error("Job runner error: %s", exp)
+        except Exception as e:
+            logger.error("Job runner error: %s", e)
         time.sleep(2.0)
 
 
@@ -176,8 +176,8 @@ def inbox_poller() -> None:
                         path.unlink()
                     except Exception:
                         pass
-        except Exception as exc:
-            logger.error("Inbox poller error: %s", exp)
+        except Exception as e:
+            logger.error("Inbox poller error: %s", e)
         time.sleep(max(1.0, config.INBOX_POLL_SECONDS))
 
 
@@ -187,8 +187,8 @@ def retention_worker() -> None:
             n = prune_old_events()
             if n:
                 logger.info("Pruned %s live_events", n)
-        except Exception as exc:
-            logger.error("Retention error: %s", exp)
+        except Exception as e:
+            logger.error("Retention error: %s", e)
         time.sleep(max(60, config.RETENTION_INTERVAL_SECONDS))
 
 
@@ -210,5 +210,5 @@ def live_feed_simulator() -> None:
                 severity="info",
                 details={"sim": True},
             )
-        except Exception as exc:
-            logger.error("Simulator failed: %s", exp)
+        except Exception as e:
+            logger.error("Simulator failed: %s", e)
