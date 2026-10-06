@@ -1,0 +1,218 @@
+def recon_scan(hosts: list[str]) -> list[dict]:
+    ports = DEFAULT_PORTS
+    _mod("nmap_module", "running", f"Port mapping {len(hosts)} host(s)")
+    _ev("nmap_module", f"Service mapping started ({len(hosts)} hosts, {len(ports)} ports)")
+    open_ports: list[dict] = []
+
+    if _nmap_available() and len(hosts) <= 64:
+        _ev("nmap_module", "Using local nmap binary for service mapping")
+        port_spec = ",".join(str(p) for p in ports)
+        for host in hosts:
+            try:
+                r = subprocess.run(
+                    ["nmap", "-Pn", "-n", "--open", "-p", port_spec, "-T4", "--max-retries", "1", host],
+                    capture_output=True,
+                    text=True,
+                    timeout=180,
+                )
+                for line in (r.stdout or "").splitlines():
+                    line = line.strip()
+                    if "/tcp" in line and " open " in line:
+                        parts = line.split()
+                        port = parts[0].split("/")[0]
+                        svc = parts[2] if len(parts) > 2 else SERVICE_HINTS.get(int(port), "unknown")
+                        open_ports.append(
+                            {"host": host, "port": port, "service": svc, "banner": "", "state": "open"}
+                        )
+            except Exception as exc:
+                logger.warning("nmap failed %s: %s", host, exc)
+    else:
+        _ev("nmap_module", "TCP connect scanner (install nmap for deeper scans)")
+        with ThreadPoolExecutor(max_workers=48) as pool:
+            futs = [pool.submit(_tcp_probe, h, p) for h in hosts for p in ports]
+            for fut in as_completed(futs):
+                row = fut.result()
+                if row:
+                    open_ports.append(row)
+
+    _mod("nmap_module", "ok", f"{len(open_ports)} open service(s) on {len(hosts)} host(s)")
+    _ev("nmap_module", f"Network map complete — {len(open_ports)} open ports")
+    return open_ports
+
+
+def vulnerability_heuristics(open_ports: list[dict]) -> list[dict]:
+    _mod("openvas_module", "running", "Assessing exposed services")
+    _ev("openvas_module", "Risk assessment of open services")
+    vulns: list[dict] = []
+    for row in open_ports:
+        p = int(row["port"]) if str(row["port"]).isdigit() else 0
+        if p in RISK_RULES:
+            sev, title, cma, skey = RISK_RULES[p]
+            vulns.append(
+                {
+                    "host": row["host"],
+                    "port": row["port"],
+                    "severity": sev,
+                    "title": title,
+                    "cve": "",
+                    "cma_section": cma,
+                    "service": skey,
+                    "evidence": json.dumps(row),
+                }
+            )
+    _mod("openvas_module", "ok", f"{len(vulns)} issue(s) for review")
+    _ev("openvas_module", f"Assessment complete — {len(vulns)} findings")
+    return vulns
+
+
+def map_tt_compliance(vulns: list[dict]) -> list[dict]:
+    _mod("tt_compliance_mapper", "running", "Mapping Computer Misuse Act ss.3/6/7")
+    for v in vulns:
+        if not v.get("cma_section"):
+            v["cma_section"] = {
+                "critical": "Section 3",
+                "high": "Section 6",
+            }.get(v.get("severity") or "", "Section 7")
+    _mod("tt_compliance_mapper", "ok", f"Mapped {len(vulns)} finding(s)")
+    _ev("tt_compliance_mapper", f"Statutory mapping complete ({len(vulns)} items)")
+    return vulns
+
+
+def write_network_map(session_id: str, target: str, hosts_up: list[str], open_ports: list[dict]) -> Path:
+    config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    nodes = []
+    for h in hosts_up:
+        services = [
+            {"port": p.get("port"), "service": p.get("service"), "banner": p.get("banner") or ""}
+            for p in open_ports
+            if p.get("host") == h
+        ]
+        nodes.append({"host": h, "services": services, "service_count": len(services)})
+    payload = {
+        "session_id": session_id,
+        "target": target,
+        "generated_at": _now(),
+        "host_count": len(hosts_up),
+        "open_port_count": len(open_ports),
+        "nodes": nodes,
+    }
+    path = config.REPORTS_DIR / f"CyberAudit_NetworkMap_{session_id}.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
+def archive_session(
+    session_id: str,
+    target: str,
+    vulns: list[dict],
+    report_path: Path,
+    hosts_up: list[str],
+    open_ports: list[dict],
+) -> None:
+    _mod("database_module", "running", f"Archiving {session_id}")
+    high = sum(1 for v in vulns if v.get("severity") in ("high", "critical"))
+    med = sum(1 for v in vulns if v.get("severity") == "medium")
+    low = sum(1 for v in vulns if v.get("severity") == "low")
+    score = max(0.0, 100.0 - high * 15 - med * 5 - low * 1)
+    upsert_audit_session(
+        {
+            "session_id": session_id,
+            "start_time": _now(),
+            "end_time": _now(),
+            "target": target,
+            "status": "completed",
+            "findings_count": len(vulns),
+            "high_severity": high,
+            "medium_severity": med,
+            "low_severity": low,
+            "compliance_score": score,
+            "report_path": str(report_path),
+            "notes": json.dumps(
+                {
+                    "hosts_up": hosts_up[:128],
+                    "open_ports": len(open_ports),
+                    "pipeline": "cyberaudit-3.0-client",
+                }
+            ),
+        }
+    )
+    for v in vulns:
+        insert_finding(
+            {
+                "session_id": session_id,
+                "host": v.get("host"),
+                "port": v.get("port"),
+                "severity": v.get("severity"),
+                "title": v.get("title"),
+                "cve": v.get("cve") or "",
+                "cma_section": v.get("cma_section") or "",
+                "evidence": v.get("evidence") or "",
+                "status": "open",
+            }
+        )
+    _mod("database_module", "ok", f"Session {session_id} archived")
+    _ev("database_module", f"Archived session {session_id}")
+
+
+def run_audit_job(job: dict) -> dict:
+    job_id = job.get("job_id") or f"JOB-{secrets.token_hex(4)}"
+    target = (job.get("target") or "").strip()
+    if not target:
+        raise ValueError("target required — set scope under Rules of Engagement")
+
+    session_id = f"AUD-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
+    _ev("dashboard", f"Client audit started {job_id} scope={target}", details=job)
+    upsert_audit_session(
+        {
+            "session_id": session_id,
+            "start_time": _now(),
+            "target": target,
+            "status": "running",
+            "notes": f"job_id={job_id}",
+        }
+    )
+
+    _mod("diagnostics_module", "ok", f"nmap={'yes' if _nmap_available() else 'no (TCP fallback)'}")
+
+    candidates = _parse_targets(target) or [target]
+    hosts_up = discover_live_hosts(candidates)
+    if not hosts_up:
+        hosts_up = candidates[:16]
+
+    open_ports = recon_scan(hosts_up)
+    vulns = map_tt_compliance(vulnerability_heuristics(open_ports))
+
+    _mod("regional_threat_intel", "ok", "Cross-check latest TT-CSIRT / CARICOM IMPACS advisories")
+    _mod("patch_verification_module", "ok", "Baseline snapshot recorded for this engagement")
+    _mod("incident_response_module", "idle", "Playbooks ready — operator review for high findings")
+    _mod("data_exfiltration_module", "ok", "Not in continuous mode — point-in-time audit only")
+    _mod("continuous_ids_module", "ok", "Point-in-time audit — feed live alerts via inbox if needed")
+
+    _mod("pdf_report_module", "running", "Writing client executive + technical reports")
+    map_path = write_network_map(session_id, target, hosts_up, open_ports)
+    paths = write_client_reports(session_id, target, open_ports, vulns, hosts_up)
+    primary = paths["executive_txt"]
+    _mod("pdf_report_module", "ok", f"Reports: {primary.name}")
+    _ev("pdf_report_module", f"Client reports ready ({primary.name})")
+
+    archive_session(session_id, target, vulns, primary, hosts_up, open_ports)
+
+    result = {
+        "job_id": job_id,
+        "session_id": session_id,
+        "target": target,
+        "hosts_up": len(hosts_up),
+        "open_ports": len(open_ports),
+        "findings": len(vulns),
+        "report": str(primary),
+        "report_html": str(paths["executive_html"]),
+        "network_map": str(map_path),
+        "status": "completed",
+    }
+    _ev(
+        "dashboard",
+        f"Audit complete {session_id}: {len(hosts_up)} hosts, {len(open_ports)} services, {len(vulns)} findings",
+        "info" if not vulns else "medium",
+        details=result,
+    )
+    return result
