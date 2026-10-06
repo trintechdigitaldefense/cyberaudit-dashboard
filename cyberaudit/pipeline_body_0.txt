@@ -1,0 +1,171 @@
+"""CyberAudit 3.0 — client network mapping pipeline (point-in-time full picture)."""
+from __future__ import annotations
+
+import datetime
+import ipaddress
+import json
+import logging
+import secrets
+import socket
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+from typing import Any, Optional
+
+from cyberaudit import config
+from cyberaudit.db import insert_finding, insert_live_event, upsert_audit_session, upsert_module_status
+from cyberaudit.report_generator import write_client_reports
+
+logger = logging.getLogger("CyberAuditDashboard")
+
+DEFAULT_PORTS = [
+    21, 22, 23, 25, 53, 80, 110, 111, 135, 139, 143, 389, 443, 445, 465, 587,
+    993, 995, 1433, 1521, 2049, 3306, 3389, 5432, 5900, 5985, 5986, 6379,
+    8000, 8080, 8443, 8888, 9200, 27017,
+]
+SERVICE_HINTS = {
+    21: "ftp", 22: "ssh", 23: "telnet", 25: "smtp", 53: "dns", 80: "http",
+    110: "pop3", 111: "rpcbind", 135: "msrpc", 139: "netbios", 143: "imap",
+    389: "ldap", 443: "https", 445: "smb", 465: "smtps", 587: "submission",
+    993: "imaps", 995: "pop3s", 1433: "mssql", 1521: "oracle", 2049: "nfs",
+    3306: "mysql", 3389: "rdp", 5432: "postgres", 5900: "vnc",
+    5985: "winrm-http", 5986: "winrm-https", 6379: "redis", 8000: "http-alt",
+    8080: "http-alt", 8443: "https-alt", 8888: "http-alt", 9200: "elasticsearch",
+    27017: "mongodb",
+}
+
+RISK_RULES = {
+    23: ("high", "Telnet service exposed (cleartext remote access)", "Section 6", "telnet"),
+    21: ("medium", "FTP service exposed without enforced encryption", "Section 6", "ftp"),
+    80: ("medium", "HTTP service without TLS on standard web port", "Section 6", "http"),
+    8080: ("medium", "Alternate HTTP service without TLS", "Section 6", "http"),
+    8000: ("medium", "Alternate HTTP service without TLS", "Section 6", "http"),
+    8888: ("medium", "Alternate HTTP service without TLS", "Section 6", "http"),
+    3389: ("high", "Windows Remote Desktop (RDP) network-exposed", "Section 3", "rdp"),
+    445: ("high", "SMB file sharing exposed on scanned network", "Section 6", "smb"),
+    139: ("medium", "NetBIOS session service exposed", "Section 6", "smb"),
+    6379: ("critical", "Redis database reachable on network", "Section 3", "redis"),
+    9200: ("high", "Elasticsearch service network-exposed", "Section 3", "elasticsearch"),
+    27017: ("high", "MongoDB service network-exposed", "Section 3", "elasticsearch"),
+    22: ("low", "SSH remote administration reachable", "Section 3", "ssh"),
+    3306: ("high", "MySQL database port open on network", "Section 3", "mysql"),
+    1433: ("high", "Microsoft SQL Server port open on network", "Section 3", "mssql"),
+    5432: ("high", "PostgreSQL database port open on network", "Section 3", "postgres"),
+    5900: ("high", "VNC remote desktop reachable", "Section 3", "vnc"),
+    5985: ("high", "WinRM HTTP management interface exposed", "Section 3", "rdp"),
+    2049: ("medium", "NFS file sharing exposed", "Section 6", "smb"),
+}
+
+
+def _now() -> str:
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _mod(name: str, status: str, result: str = "") -> None:
+    upsert_module_status(module_name=name, status=status, last_result=result, last_run=_now())
+
+
+def _ev(module: str, message: str, severity: str = "info", **kw: Any) -> None:
+    insert_live_event(
+        module=module,
+        message=message,
+        severity=severity,
+        event_type=kw.get("event_type")
+        or ("alert" if severity in ("high", "critical") else "info"),
+        details=kw.get("details"),
+    )
+
+
+def _parse_targets(target: str, max_hosts: int = 256) -> list[str]:
+    target = (target or "").strip()
+    if not target:
+        return []
+    hosts: list[str] = []
+    for part in [p.strip() for p in target.replace(";", ",").split(",") if p.strip()]:
+        try:
+            net = ipaddress.ip_network(part, strict=False)
+            all_hosts = list(net.hosts())
+            if len(all_hosts) > max_hosts:
+                step = max(1, len(all_hosts) // max_hosts)
+                all_hosts = all_hosts[::step][:max_hosts]
+            hosts.extend(str(h) for h in all_hosts)
+            continue
+        except ValueError:
+            pass
+        try:
+            ipaddress.ip_address(part)
+            hosts.append(part)
+            continue
+        except ValueError:
+            try:
+                infos = socket.getaddrinfo(part, None, socket.AF_INET)
+                for info in infos:
+                    hosts.append(info[4][0])
+            except Exception:
+                hosts.append(part)
+    seen, out = set(), []
+    for h in hosts:
+        if h not in seen:
+            seen.add(h)
+            out.append(h)
+    return out[:max_hosts]
+
+
+def _host_alive(host: str, timeout: float = 0.8) -> bool:
+    for port in (80, 443, 22, 445, 3389, 135):
+        try:
+            with socket.create_connection((host, port), timeout=timeout):
+                return True
+        except Exception:
+            continue
+    try:
+        r = subprocess.run(["ping", "-c", "1", "-W", "1", host], capture_output=True, timeout=3)
+        if r.returncode == 0:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _tcp_probe(host: str, port: int, timeout: float = 1.0) -> Optional[dict]:
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s:
+            banner = ""
+            try:
+                s.settimeout(0.6)
+                if port in (21, 22, 25, 110, 143):
+                    banner = s.recv(256).decode("utf-8", errors="replace").strip()[:180]
+            except Exception:
+                pass
+            return {
+                "host": host,
+                "port": str(port),
+                "service": SERVICE_HINTS.get(port, "unknown"),
+                "banner": banner,
+                "state": "open",
+            }
+    except Exception:
+        return None
+
+
+def _nmap_available() -> bool:
+    try:
+        return subprocess.run(["nmap", "-V"], capture_output=True, text=True, timeout=5).returncode == 0
+    except Exception:
+        return False
+
+
+def discover_live_hosts(hosts: list[str]) -> list[str]:
+    _mod("nmap_module", "running", f"Host discovery on {len(hosts)} address(es)")
+    _ev("nmap_module", f"Discovering live systems ({len(hosts)} candidates)")
+    live: list[str] = []
+    with ThreadPoolExecutor(max_workers=64) as pool:
+        futs = {pool.submit(_host_alive, h): h for h in hosts}
+        for fut in as_completed(futs):
+            if fut.result():
+                live.append(futs[fut])
+    if not live and len(hosts) == 1:
+        live = list(hosts)
+    live = sorted(set(live), key=lambda x: tuple(int(p) if p.isdigit() else 0 for p in x.replace(":", ".").split(".")[:4]))
+    _ev("nmap_module", f"Live systems: {len(live)}", details={"hosts": live[:50]})
+    return live
