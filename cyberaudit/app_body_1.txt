@@ -55,8 +55,13 @@ def findings_page():
 @app.route("/reports")
 @login_required
 def reports_page():
+    files = []
+    for pattern in ("*.pdf", "*.html", "*.txt", "*.json"):
+        files.extend(config.REPORTS_DIR.glob(pattern))
     files = sorted(
-        config.REPORTS_DIR.glob("*.pdf"), key=lambda p: p.stat().st_mtime, reverse=True
+        [f for f in files if f.is_file()],
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
     )
     report_list = [
         {
@@ -65,7 +70,7 @@ def reports_page():
             "mtime": datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime(
                 "%Y-%m-%d %H:%M"
             ),
+            "kind": f.suffix.lstrip(".").upper() or "FILE",
         }
         for f in files
-        if f.is_file()
     ]
