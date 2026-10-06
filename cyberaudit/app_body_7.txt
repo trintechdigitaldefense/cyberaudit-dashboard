@@ -41,6 +41,8 @@ _workers_started = False
 def start_background_workers():
     init_db()
     ensure_sample_playbooks()
+    from cyberaudit.modules_bootstrap import ensure_modules_ready
+    ensure_modules_ready()
     # Real pipeline always: job runner executes queued audits
     from cyberaudit.workers import job_runner
     threading.Thread(target=job_runner, daemon=True).start()

@@ -13,6 +13,11 @@
         event_type="job",
         details=job,
     )
+    try:
+        from cyberaudit.modules_bootstrap import mark_modules_for_job
+        mark_modules_for_job(target)
+    except Exception as _exc:
+        logger.debug("mark modules: %s", _exc)
     triggered = False
     if config.AUDIT_TRIGGER_CMD:
         try:
