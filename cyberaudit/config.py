@@ -65,7 +65,7 @@ COMPANY = {
     "short_name": "TrinTech DD",
     "tagline": "Caribbean Cyber Resilience • Trinidad & Tobago",
     "product": "CyberAudit",
-    "version": "2.4.0-p3",
+    "version": "3.0.0-client",
     "address": "Remote operations · Trinidad and Tobago",
     "phone": "1-868-362-0679",
     "email": "trintechdigitaldefense@gmail.com",
