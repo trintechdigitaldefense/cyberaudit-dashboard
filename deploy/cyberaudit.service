@@ -1,0 +1,18 @@
+[Unit]
+Description=CyberAudit Client Dashboard (TrinTech Digital Defense)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/cyberaudit-dashboard
+Environment=DEMO_MODE=0
+Environment=CYBERAUDIT_HOST=127.0.0.1
+Environment=CYBERAUDIT_PORT=1881
+EnvironmentFile=-/opt/cyberaudit-dashboard/.env
+ExecStart=/opt/cyberaudit-dashboard/venv/bin/gunicorn --worker-class eventlet -w 1 -b 127.0.0.1:1881 --timeout 300 --access-logfile - --error-logfile - dashboard_app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

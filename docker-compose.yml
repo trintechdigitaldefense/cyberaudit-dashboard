@@ -1,21 +1,18 @@
 services:
-  cyberaudit-dashboard:
+  cyberaudit:
     build: .
     ports:
       - "1881:1881"
     environment:
-      DEMO_MODE: ${DEMO_MODE:-0}
+      DEMO_MODE: "0"
       CYBERAUDIT_HOST: "0.0.0.0"
       CYBERAUDIT_PORT: "1881"
-      CYBERAUDIT_USER: ${CYBERAUDIT_USER:-ops}
-      CYBERAUDIT_PASSWORD: ${CYBERAUDIT_PASSWORD:?set CYBERAUDIT_PASSWORD}
-      CYBERAUDIT_SECRET: ${CYBERAUDIT_SECRET:?set CYBERAUDIT_SECRET}
-      CYBERAUDIT_INGEST_TOKEN: ${CYBERAUDIT_INGEST_TOKEN:-}
-      CYBERAUDIT_EVENT_RETENTION_DAYS: ${CYBERAUDIT_EVENT_RETENTION_DAYS:-30}
-      CYBERAUDIT_COOKIE_SECURE: ${CYBERAUDIT_COOKIE_SECURE:-0}
-      CYBERAUDIT_ALLOWED_ORIGINS: ${CYBERAUDIT_ALLOWED_ORIGINS:-}
+      CYBERAUDIT_USER: "${CYBERAUDIT_USER:-admin}"
+      CYBERAUDIT_PASSWORD: "${CYBERAUDIT_PASSWORD:?set CYBERAUDIT_PASSWORD}"
+      CYBERAUDIT_SECRET: "${CYBERAUDIT_SECRET:?set CYBERAUDIT_SECRET}"
+      CYBERAUDIT_INGEST_TOKEN: "${CYBERAUDIT_INGEST_TOKEN:-}"
     volumes:
-      - ${CYBERAUDIT_DB_HOST_PATH:-./data}:/app/data
-      - ${CYBERAUDIT_REPORTS_HOST_PATH:-./reports}:/app/reports
-      - ${CYBERAUDIT_PLAYBOOKS_HOST_PATH:-./playbooks}:/app/playbooks
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./playbooks:/app/playbooks
     restart: unless-stopped
