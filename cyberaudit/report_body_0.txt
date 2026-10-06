@@ -1,0 +1,234 @@
+"""Client-facing CyberAudit reports — plain language for non-technical readers."""
+from __future__ import annotations
+
+import datetime
+import html
+from pathlib import Path
+from typing import Any
+
+from cyberaudit import config
+
+COMPANY = config.COMPANY
+
+PLAIN = {
+    "telnet": {
+        "what": "An old remote-access service (Telnet) is reachable on the network.",
+        "why": "Passwords and data sent over Telnet can be read by anyone who can watch the network traffic — like sending a letter on a postcard instead of in an envelope.",
+        "do": "Turn Telnet off. Use secure remote access (SSH or a VPN) instead.",
+    },
+    "ftp": {
+        "what": "File transfer (FTP) is available without modern encryption.",
+        "why": "Files and login details may travel unprotected across the network.",
+        "do": "Replace FTP with SFTP or a secure file-sharing system your IT team supports.",
+    },
+    "http": {
+        "what": "A website or web application is running without HTTPS encryption.",
+        "why": "Staff or customers connecting to it may expose passwords or personal data on the path between their device and the server.",
+        "do": "Enable HTTPS (a free or commercial TLS certificate) and redirect all traffic to the secure address.",
+    },
+    "rdp": {
+        "what": "Windows remote desktop (RDP) is reachable from the scanned network.",
+        "why": "Attackers often target open RDP to take control of PCs or servers. This is a common entry point in ransomware incidents.",
+        "do": "Restrict RDP to trusted internal networks or VPN only. Require multi-factor authentication where possible.",
+    },
+    "smb": {
+        "what": "Windows file-sharing (SMB) is exposed on the scanned network.",
+        "why": "Misconfigured shares can leak confidential files; unpatched SMB has been used in major cyber attacks.",
+        "do": "Confirm only intended folders are shared, apply security updates, and limit which machines can connect.",
+    },
+    "redis": {
+        "what": "A Redis database service is reachable without strong network controls.",
+        "why": "Many Redis installs were never meant to be open on a network and can allow full data access or server takeover if left open.",
+        "do": "Bind Redis to localhost or a private network only, set a strong password, and block external access at the firewall.",
+    },
+    "elasticsearch": {
+        "what": "An Elasticsearch search/database service is network-reachable.",
+        "why": "Open Elasticsearch instances have repeatedly leaked large amounts of customer data worldwide.",
+        "do": "Require authentication, place the service behind a firewall, and never expose it to the public internet.",
+    },
+    "ssh": {
+        "what": "Secure Shell (SSH) remote administration is available.",
+        "why": "SSH itself is normal and useful, but weak passwords or unused accounts increase risk.",
+        "do": "Prefer SSH keys over passwords, disable root login if practical, and keep the service patched.",
+    },
+    "mysql": {
+        "what": "A MySQL database port is open on the network.",
+        "why": "Databases should rarely be reachable beyond application servers. Exposure increases the chance of data theft.",
+        "do": "Allow database connections only from trusted application hosts; enforce strong credentials.",
+    },
+    "mssql": {
+        "what": "A Microsoft SQL Server database port is open on the network.",
+        "why": "Database exposure is a high-value target for attackers seeking customer or financial records.",
+        "do": "Restrict access by firewall rules; enable encryption and strong authentication.",
+    },
+    "postgres": {
+        "what": "A PostgreSQL database port is open on the network.",
+        "why": "Same as other databases — limit who can reach it.",
+        "do": "Firewall the port to application servers only; use strong passwords or certificates.",
+    },
+    "vnc": {
+        "what": "Remote screen-sharing (VNC) is reachable.",
+        "why": "Weak or missing VNC passwords can give an attacker a live view and control of a desktop.",
+        "do": "Disable VNC if unused, or require a VPN and a strong password.",
+    },
+    "default": {
+        "what": "A network service was found that may need review.",
+        "why": "Every open service increases the surface attackers can probe.",
+        "do": "Confirm with IT whether this service is required; close it if not.",
+    },
+}
+
+
+def _plain_for(service: str, title: str) -> dict:
+    key = (service or "").lower()
+    for k, v in PLAIN.items():
+        if k in key or k in (title or "").lower():
+            return v
+    return PLAIN["default"]
+
+
+def severity_label(sev: str) -> str:
+    return {
+        "critical": "Critical — address immediately",
+        "high": "High — plan remediation this week",
+        "medium": "Medium — schedule within a reasonable window",
+        "low": "Low — improve when convenient",
+        "info": "Informational",
+    }.get((sev or "").lower(), sev or "Unknown")
+
+
+def risk_score(vulns: list[dict]) -> tuple[float, str]:
+    crit = sum(1 for v in vulns if v.get("severity") == "critical")
+    high = sum(1 for v in vulns if v.get("severity") == "high")
+    med = sum(1 for v in vulns if v.get("severity") == "medium")
+    low = sum(1 for v in vulns if v.get("severity") == "low")
+    score = max(0.0, 100.0 - crit * 25 - high * 12 - med * 5 - low * 1)
+    if score >= 85:
+        band = "Good — limited issues found"
+    elif score >= 70:
+        band = "Fair — several items need attention"
+    elif score >= 50:
+        band = "Needs improvement — prioritise high findings"
+    else:
+        band = "Poor — urgent remediation recommended"
+    return score, band
+
+
+def build_executive_summary(
+    session_id: str,
+    target: str,
+    open_ports: list[dict],
+    vulns: list[dict],
+    hosts_up: list[str],
+) -> str:
+    score, band = risk_score(vulns)
+    crit = sum(1 for v in vulns if v.get("severity") == "critical")
+    high = sum(1 for v in vulns if v.get("severity") == "high")
+    med = sum(1 for v in vulns if v.get("severity") == "medium")
+    low = sum(1 for v in vulns if v.get("severity") == "low")
+
+    lines = [
+        "=" * 72,
+        f"  {COMPANY['name']}".center(72),
+        f"  Network Security Audit — Executive Summary".center(72),
+        f"  {COMPANY['tagline']}".center(72),
+        "=" * 72,
+        "",
+        f"Report ID:     {session_id}",
+        f"Date:          {datetime.datetime.now().strftime('%d %B %Y, %H:%M')}",
+        f"Scope:         {target}",
+        f"Contact:       {COMPANY['email']} | {COMPANY['phone']}",
+        f"Website:       {COMPANY['website']}",
+        "",
+        "-" * 72,
+        "WHAT THIS REPORT IS",
+        "-" * 72,
+        "This is a point-in-time network audit. It maps devices and services",
+        "that responded during the scan window. It is not continuous 24/7",
+        "monitoring. Results reflect what was reachable from the scanner",
+        "at the time of the engagement, under the agreed rules of engagement.",
+        "",
+        "-" * 72,
+        "HEADLINE FOR LEADERSHIP",
+        "-" * 72,
+        f"Overall posture score:  {score:.0f} / 100  ({band})",
+        f"Systems responding:     {len(hosts_up)}",
+        f"Open network services:  {len(open_ports)}",
+        f"Issues logged:          {len(vulns)}  "
+        f"(Critical {crit} · High {high} · Medium {med} · Low {low})",
+        "",
+    ]
+
+    if crit or high:
+        lines.append("Top priority for management:")
+        lines.append("  One or more high-impact issues were found. These should be")
+        lines.append("  assigned to IT or your managed service provider without delay.")
+        lines.append("")
+    elif not vulns:
+        lines.append("No major service-exposure issues were flagged by this scan.")
+        lines.append("Continue normal patching, backups, and access reviews.")
+        lines.append("")
+
+    lines.extend(["-" * 72, "SYSTEMS SEEN ON THE NETWORK", "-" * 72])
+    if hosts_up:
+        for h in hosts_up:
+            ports_here = [p for p in open_ports if p.get("host") == h]
+            svc = ", ".join(f"{p.get('port')}/{p.get('service')}" for p in ports_here[:8]) or "no common ports open"
+            lines.append(f"  • {h}")
+            lines.append(f"      Services: {svc}")
+    else:
+        lines.append("  No hosts responded in scope (check connectivity / firewall).")
+
+    lines.extend(["", "-" * 72, "FINDINGS IN PLAIN LANGUAGE", "-" * 72, ""])
+
+    if not vulns:
+        lines.append("  No risk findings were generated from open services in scope.")
+    else:
+        order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+        sorted_v = sorted(vulns, key=lambda v: order.get(v.get("severity") or "info", 9))
+        for i, v in enumerate(sorted_v, 1):
+            plain = _plain_for(v.get("service") or "", v.get("title") or "")
+            lines.append(f"  [{i}] {severity_label(v.get('severity') or '')}")
+            lines.append(f"      Where:   {v.get('host')}:{v.get('port')} ({v.get('service') or 'service'})")
+            lines.append(f"      What:    {plain['what']}")
+            lines.append(f"      Why it matters: {plain['why']}")
+            lines.append(f"      What to do:     {plain['do']}")
+            if v.get("cma_section"):
+                lines.append(
+                    f"      Local law note: Related to Trinidad & Tobago "
+                    f"Computer Misuse Act — {v.get('cma_section')} "
+                    f"(unauthorised access / system interference themes)."
+                )
+            lines.append("")
+
+    lines.extend([
+        "-" * 72,
+        "RECOMMENDED NEXT STEPS",
+        "-" * 72,
+        "  1. Assign an owner for each Critical and High finding.",
+        "  2. Close or restrict unnecessary services at the firewall.",
+        "  3. Ensure backups are tested and offline/immutable copies exist.",
+        "  4. Review who has remote access (VPN, RDP, SSH) and enforce MFA.",
+        "  5. Schedule a follow-up scan after remediation to confirm closure.",
+        "",
+        "-" * 72,
+        "REGULATORY CONTEXT (TRINIDAD & TOBAGO)",
+        "-" * 72,
+        "  This engagement references the Computer Misuse Act, Chap. 11:17",
+        "  (Sections 3, 6 and 7) for awareness. Mapping is indicative for",
+        "  risk discussion — not a formal legal opinion.",
+        "",
+        "-" * 72,
+        "DISCLAIMER",
+        "-" * 72,
+        "  This report is confidential to the client named in the engagement.",
+        "  Scanning was performed only within authorised scope. Absence of a",
+        "  finding does not guarantee absence of risk. For questions contact",
+        f"  {COMPANY['email']} or {COMPANY['phone']}.",
+        "",
+        f"  Prepared by {COMPANY['name']} — {COMPANY['address']}",
+        "=" * 72,
+        "",
+    ])
+    return "\n".join(lines)
+
