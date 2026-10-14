@@ -2,3 +2,4 @@ flask>=3.0
 flask-socketio>=5.3
 eventlet>=0.35
 gunicorn>=22.0
+reportlab>=4.0
