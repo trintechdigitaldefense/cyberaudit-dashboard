@@ -1,22 +1,23 @@
 # CyberAudit Changelog
 
-## 3.5.0-director — 2026-10-14
+## 3.6.0-intel — 2026-10-14
 
-### Phase 5 — Kill the Jargon
+### Phase 6 — Intelligence Layer
 
-| ID | Feature | Module |
-|----|---------|--------|
-| P5.1 | Director mode | `director_mode.py` |
-| P5.2 | Money risk (TT$) | `money_risk.py` |
-| P5.3 | One-page board summary | `board_summary.py` |
-| P5.4 | Client portal | `/portal` + `templates/portal.html` |
-| P5.5 | Caribbean threat intel | `caribbean_intel.py` |
+| ID | Feature | Module | Proof |
+|----|---------|--------|-------|
+| P6.1 | GVM/OpenVAS ingestion | `gvm_ingest.py` | XML/JSON parse + merge |
+| P6.2 | Credential leak check | `credential_leak.py` | Corpus match + remediation plain language |
+| P6.3 | Cloud posture (AWS/Azure snapshot) | `cloud_posture.py` | Public buckets, open SGs, root MFA |
+| P6.4 | Anonymized benchmarks | `benchmarks.py` | Consent-gated sector averages |
 
-Currency standard: **TT$ primary**, US$ equivalent at fixed reference rate 6.8.
-Honesty: point-in-time language on board summary and portal.
+Job fields: `openvas_report`, `domain`/`emails`, `cloud_snapshot`, `benchmark_consent: true`.
 
-### Prior
-- 3.4.0 Phase 4 hardening H1–H10
+Honesty: we complement scanners; breach results only reflect loaded corpus; cloud checks use operator snapshot JSON.
+
+### Prior releases
+- 3.5.0 Phase 5 Director mode / TT$ money / board summary / portal / Caribbean intel
+- 3.4.0 Phase 4 H1–H10 hardening
 - 3.3.0 Phase 3 RBAC / windows / encryption / alerts / tenants / DPA
-- 3.2.0 Phase 2 auth / wireless / web / translator / sectors
+- 3.2.0 Phase 2 auth / wireless / web
 - 3.1.0 Phase 1 CVSS / posture / retest / exec PDF
