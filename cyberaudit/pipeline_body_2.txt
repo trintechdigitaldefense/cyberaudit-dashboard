@@ -18,55 +18,28 @@ def archive_session(
         score = max(0.0, 100.0 - high * 15 - med * 5 - low * 1)
     else:
         score = float(posture_score)
-    upsert_audit_session(
-        {
-            "session_id": session_id,
-            "start_time": _now(),
-            "end_time": _now(),
-            "target": target,
-            "status": "completed",
-            "findings_count": len(vulns),
-            "high_severity": high,
-            "medium_severity": med,
-            "low_severity": low,
-            "compliance_score": score,
-            "report_path": str(report_path),
-            "notes": json.dumps(
-                {
-                    "hosts_up": hosts_up[:128],
-                    "open_ports": len(open_ports),
-                    "pipeline": "cyberaudit-3.1-phase1",
-                    "posture_score": score,
-                }
-            ),
-        }
-    )
+    upsert_audit_session({
+        "session_id": session_id, "start_time": _now(), "end_time": _now(),
+        "target": target, "status": "completed", "findings_count": len(vulns),
+        "high_severity": high, "medium_severity": med, "low_severity": low,
+        "compliance_score": score, "report_path": str(report_path),
+        "notes": json.dumps({"hosts_up": hosts_up[:128], "open_ports": len(open_ports),
+                              "pipeline": "cyberaudit-3.2-phase2", "posture_score": score}),
+    })
     if not skip_findings:
         for v in vulns:
-            insert_finding(
-                {
-                    "session_id": session_id,
-                    "host": v.get("host"),
-                    "port": v.get("port"),
-                    "severity": v.get("severity"),
-                    "title": v.get("title"),
-                    "cve": v.get("cve") or "",
-                    "cma_section": v.get("cma_section") or "",
-                    "evidence": v.get("evidence") or "",
-                    "status": "open",
-                }
-            )
+            insert_finding({
+                "session_id": session_id, "host": v.get("host"), "port": v.get("port"),
+                "severity": v.get("severity"), "title": v.get("title"),
+                "cve": v.get("cve") or "", "cma_section": v.get("cma_section") or "",
+                "evidence": v.get("evidence") or "", "status": "open",
+            })
     _mod("database_module", "ok", f"Session {session_id} archived")
     _ev("database_module", f"Archived session {session_id}")
 
 
 def run_audit_job(job: dict) -> dict:
-    """Full client network picture: discover → map → assess → CMA → Phase1 → report → archive."""
-    from cyberaudit.phase1_integrate import (
-        apply_phase1,
-        persist_enriched_findings,
-        patch_session_posture,
-    )
+    from cyberaudit.phase1_integrate import apply_phase1, persist_enriched_findings, patch_session_posture
 
     job_id = job.get("job_id") or f"JOB-{secrets.token_hex(4)}"
     target = (job.get("target") or "").strip()
@@ -75,24 +48,16 @@ def run_audit_job(job: dict) -> dict:
 
     session_id = f"AUD-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
     client_name = (job.get("client_name") or job.get("client") or "").strip()
+    sector = (job.get("sector") or job.get("industry") or "general").strip().lower()
     _ev("dashboard", f"Client audit started {job_id} scope={target}", details=job)
-    upsert_audit_session(
-        {
-            "session_id": session_id,
-            "start_time": _now(),
-            "target": target,
-            "status": "running",
-            "notes": f"job_id={job_id}",
-        }
-    )
+    upsert_audit_session({
+        "session_id": session_id, "start_time": _now(), "target": target,
+        "status": "running", "notes": f"job_id={job_id}",
+    })
 
     _mod("diagnostics_module", "ok", f"nmap={'yes' if _nmap_available() else 'no (TCP fallback)'}")
-
     candidates = _parse_targets(target) or [target]
-    hosts_up = discover_live_hosts(candidates)
-    if not hosts_up:
-        hosts_up = candidates[:16]
-
+    hosts_up = discover_live_hosts(candidates) or candidates[:16]
     open_ports = recon_scan(hosts_up)
     vulns = vulnerability_heuristics(open_ports)
 
@@ -105,8 +70,28 @@ def run_audit_job(job: dict) -> dict:
     except Exception as exc:
         logger.warning("webapp module skipped: %s", exc)
 
-    vulns = map_tt_compliance(vulns)
+    try:
+        from cyberaudit.auth_scan_module import run_authenticated_checks
+        auth_findings = run_authenticated_checks(open_ports, job=job)
+        if auth_findings:
+            vulns.extend(auth_findings)
+            _ev("openvas_module", f"Authenticated scan complete — {len(auth_findings)} finding(s)")
+        else:
+            _ev("openvas_module", "No credentialed checks (credentials not supplied in job/env)")
+    except Exception as exc:
+        logger.warning("auth scan module skipped: %s", exc)
 
+    try:
+        from cyberaudit.wireless_module import run_wireless_audit
+        use_radio = bool(job.get("wireless_local_radio") or job.get("use_local_wifi"))
+        wifi_findings = run_wireless_audit(job, use_local_radio=use_radio)
+        if wifi_findings:
+            vulns.extend(wifi_findings)
+            _ev("nmap_module", f"Wireless audit complete — {len(wifi_findings)} finding(s)")
+    except Exception as exc:
+        logger.warning("wireless module skipped: %s", exc)
+
+    vulns = map_tt_compliance(vulns)
     try:
         from cyberaudit.risk_translator import enrich_with_plain_language
         vulns = enrich_with_plain_language(vulns)
@@ -115,21 +100,18 @@ def run_audit_job(job: dict) -> dict:
 
     _mod("pdf_report_module", "running", "Phase 1: CVSS, posture, executive PDF, delta")
     vulns, p1 = apply_phase1(
-        session_id,
-        target,
-        vulns,
-        hosts_up,
-        open_ports,
-        client_name=client_name,
-        logo_path=job.get("logo_path"),
-        run_retest_delta=True,
+        session_id, target, vulns, hosts_up, open_ports,
+        client_name=client_name, logo_path=job.get("logo_path"), run_retest_delta=True,
     )
     posture = p1.get("posture") or {}
-    _ev(
-        "pdf_report_module",
+    try:
+        from cyberaudit.sector_templates import sector_preamble
+        _ev("pdf_report_module", sector_preamble(sector, client_name)[:500])
+    except Exception:
+        pass
+    _ev("pdf_report_module",
         f"Posture {posture.get('posture_score', 'n/a')}/100 ({posture.get('band', '')})",
-        details={"pdf": p1.get("pdf"), "delta": p1.get("delta_report")},
-    )
+        details={"pdf": p1.get("pdf"), "delta": p1.get("delta_report"), "sector": sector})
 
     _mod("regional_threat_intel", "ok", "Cross-check latest TT-CSIRT / CARICOM IMPACS advisories")
     _mod("patch_verification_module", "ok", "Baseline snapshot recorded for this engagement")
@@ -139,51 +121,31 @@ def run_audit_job(job: dict) -> dict:
 
     _mod("pdf_report_module", "running", "Writing client executive + technical reports")
     map_path = write_network_map(session_id, target, hosts_up, open_ports)
-    paths = write_client_reports(session_id, target, open_ports, vulns, hosts_up)
+    paths = write_client_reports(
+        session_id, target, open_ports, vulns, hosts_up,
+        sector=sector, client_name=client_name,
+    )
     primary = paths["executive_txt"]
     _mod("pdf_report_module", "ok", f"Reports: {primary.name}")
     _ev("pdf_report_module", f"Client reports ready ({primary.name})")
 
-    archive_session(
-        session_id,
-        target,
-        vulns,
-        primary,
-        hosts_up,
-        open_ports,
-        posture_score=posture.get("posture_score"),
-        skip_findings=True,
-    )
+    archive_session(session_id, target, vulns, primary, hosts_up, open_ports,
+                    posture_score=posture.get("posture_score"), skip_findings=True)
     persist_enriched_findings(session_id, vulns)
-    patch_session_posture(
-        session_id,
-        posture,
-        baseline_session_id=p1.get("baseline_session_id") or "",
-        client_name=client_name,
-        report_path=str(primary),
-    )
+    patch_session_posture(session_id, posture,
+                          baseline_session_id=p1.get("baseline_session_id") or "",
+                          client_name=client_name, report_path=str(primary))
 
     result = {
-        "job_id": job_id,
-        "session_id": session_id,
-        "target": target,
-        "hosts_up": len(hosts_up),
-        "open_ports": len(open_ports),
-        "findings": len(vulns),
-        "posture_score": posture.get("posture_score"),
-        "posture_band": posture.get("band"),
-        "report": str(primary),
-        "report_html": str(paths["executive_html"]),
-        "executive_pdf": p1.get("pdf"),
-        "retest_delta": p1.get("delta_report"),
-        "network_map": str(map_path),
-        "status": "completed",
+        "job_id": job_id, "session_id": session_id, "target": target,
+        "hosts_up": len(hosts_up), "open_ports": len(open_ports), "findings": len(vulns),
+        "posture_score": posture.get("posture_score"), "posture_band": posture.get("band"),
+        "report": str(primary), "report_html": str(paths["executive_html"]),
+        "executive_pdf": p1.get("pdf"), "retest_delta": p1.get("delta_report"),
+        "network_map": str(map_path), "sector": sector, "status": "completed",
     }
-    _ev(
-        "dashboard",
+    _ev("dashboard",
         f"Audit complete {session_id}: {len(hosts_up)} hosts, {len(open_ports)} services, "
         f"{len(vulns)} findings, posture {posture.get('posture_score', 'n/a')}",
-        "info" if not vulns else "medium",
-        details=result,
-    )
+        "info" if not vulns else "medium", details=result)
     return result
