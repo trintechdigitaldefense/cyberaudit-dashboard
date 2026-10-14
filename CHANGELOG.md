@@ -1,29 +1,32 @@
 # CyberAudit Changelog
 
-## 3.2.0-phase2 — 2026-10-14
+## 3.3.0-phase3 — 2026-10-14
 
-### Phase 2 — Scan Deeper (complete)
+### Phase 3 — Operate at Scale
 
-5. **Authenticated scanning** (`auth_scan_module.py`)
-   - SSH (paramiko optional), SMB (smbclient), WinRM (pywinrm optional)
-   - Credentials only from job JSON or env — never in code
-   - Skips entirely when no credentials supplied
+10. **RBAC** (`rbac.py`) — admin / analyst / viewer permission matrix
+11. **ROE windows** (`schedule_windows.py`) — jobs only run inside start–end hours; enforced in pipeline + job_runner
+12. **Encryption at rest** (`encryption.py`) — AES-256-GCM via CYBERAUDIT_DATA_KEY; secure_delete helper
+13. **Alerts** (`alerts.py`) — operator webhook/email; optional client webhook with opt-in
+14. **Multi-tenant** (`tenants.py`) — data/tenants/<client_id>/ isolation
+15. **DPA + GDPR mapping** (`privacy_mapper.py`) — personal-data relevance tags on findings
 
-6. **Web application module** (`webapp_module.py`)
-
-7. **Wireless audit** (`wireless_module.py`)
-   - Operator survey JSON in job (`wireless_survey`) or optional nmcli local radio
-   - Open/WEP/WPA1 findings, guest SSID isolation notes
-
-8. **Plain-language risk translator** — wireless pack added
-
-9. **Sector templates** wired into pipeline + executive reports
-   - Job fields: `sector`, `client_name`
-
-### Optional deps
+### Env
 
 ```
-pip install paramiko pywinrm
+CYBERAUDIT_ANALYST_USER / CYBERAUDIT_ANALYST_PASSWORD
+CYBERAUDIT_VIEWER_USER / CYBERAUDIT_VIEWER_PASSWORD
+CYBERAUDIT_DATA_KEY          # 64-hex or passphrase
+CYBERAUDIT_ALERT_WEBHOOK
+CYBERAUDIT_ALERT_EMAIL + SMTP_*
 ```
 
-System: `smbclient` for SMB enumeration; `nmcli` for local Wi-Fi survey.
+### Job fields
+
+```json
+{
+  "roe_window": {"enabled": true, "start": "02:00", "end": "04:00", "days": [0,1,2,3,4]},
+  "client_webhook": "https://...",
+  "client_alerts_opt_in": true
+}
+```
