@@ -1,32 +1,35 @@
 # CyberAudit Changelog
 
-## 3.3.0-phase3 — 2026-10-14
+## 3.4.0-hardened — 2026-10-14
 
-### Phase 3 — Operate at Scale
+### Phase 4 — A-class hardening (H1–H10)
 
-10. **RBAC** (`rbac.py`) — admin / analyst / viewer permission matrix
-11. **ROE windows** (`schedule_windows.py`) — jobs only run inside start–end hours; enforced in pipeline + job_runner
-12. **Encryption at rest** (`encryption.py`) — AES-256-GCM via CYBERAUDIT_DATA_KEY; secure_delete helper
-13. **Alerts** (`alerts.py`) — operator webhook/email; optional client webhook with opt-in
-14. **Multi-tenant** (`tenants.py`) — data/tenants/<client_id>/ isolation
-15. **DPA + GDPR mapping** (`privacy_mapper.py`) — personal-data relevance tags on findings
+| ID | Control | Implementation |
+|----|---------|----------------|
+| H1 | Session security | HttpOnly, SameSite=Lax, TTL 8h, secure cookies when configured |
+| H2 | Rate limiting | Login 8/min; decorator for scan endpoints |
+| H3 | TLS expectations | HSTS header in prod; bind 127.0.0.1; cookie secure |
+| H4 | Input validation | `validate_job_payload` / target schema — no shell metacharacters |
+| H5 | Secrets gate | Refuses admin/admin, weak passwords, missing secret, 0.0.0.0 without flag |
+| H6 | Audit logging | Hash-chained SQLite `audit_log.db` (tamper-evident) |
+| H7 | Dependency audit | `pip-audit -r requirements.txt` documented |
+| H8 | Fail-safe jobs | `fail_safe_job()` — crashes never hang the queue |
+| H9 | Security headers | CSP, nosniff, DENY frame, Referrer-Policy |
+| H10 | CSRF | Session token + `X-CSRF-Token` / form field |
 
-### Env
+### Production startup
 
+```bash
+export DEMO_MODE=0
+export CYBERAUDIT_SECRET=$(openssl rand -hex 32)
+export CYBERAUDIT_PASSWORD='long-random-password-here'
+export CYBERAUDIT_COOKIE_SECURE=1
+export CYBERAUDIT_HOST=127.0.0.1
+# never admin/admin — process exits if weak secrets detected
 ```
-CYBERAUDIT_ANALYST_USER / CYBERAUDIT_ANALYST_PASSWORD
-CYBERAUDIT_VIEWER_USER / CYBERAUDIT_VIEWER_PASSWORD
-CYBERAUDIT_DATA_KEY          # 64-hex or passphrase
-CYBERAUDIT_ALERT_WEBHOOK
-CYBERAUDIT_ALERT_EMAIL + SMTP_*
-```
 
-### Job fields
+### Prior
 
-```json
-{
-  "roe_window": {"enabled": true, "start": "02:00", "end": "04:00", "days": [0,1,2,3,4]},
-  "client_webhook": "https://...",
-  "client_alerts_opt_in": true
-}
-```
+- 3.3.0 Phase 3 RBAC / windows / encryption / alerts / tenants / DPA
+- 3.2.0 Phase 2 auth / wireless / web / translator / sectors
+- 3.1.0 Phase 1 CVSS / posture / retest / exec PDF
