@@ -1,22 +1,19 @@
 # CyberAudit Changelog
 
-## 3.7.0-ecosystem — 2026-10-14
+## 3.8.0-narrative — 2026-10-14
 
-### Phase 7 — Build the Ecosystem
+### Phase 8 — Own the Narrative
 
 | ID | Feature | Proof |
 |----|---------|-------|
-| P7.1 | Partner/MSP API `/api/v1/` | issue_partner_key + verify + POST jobs |
-| P7.2 | Air-gapped edition | CYBERAUDIT_AIRGAP=1 blocks webhooks/email |
-| P7.3 | Phishing simulation add-on | campaign ingest + director narrative |
-| P7.4 | Spanish board summary | `language: es` → RESUMEN PARA LA JUNTA |
-| P7.5 | Certification pathway | CERTIFICATION_PATHWAY.md started |
+| P8.1 | State of Cybersecurity in T&T | `state_of_cyber.py` from anonymized benchmarks |
+| P8.2 | Community tier | max 32 hosts, watermark, NGO/school/church |
+| P8.3 | Workshop-in-a-box | `workshop/` agenda, workbook, sample board |
 
-### Env
-```
-CYBERAUDIT_PARTNER_KEYS=ca_xxx,ca_yyy
-CYBERAUDIT_AIRGAP=1
+```bash
+python3 scripts/generate_state_report.py
+# job: "tier": "community"
 ```
 
 ### Prior
-- 3.6.0 intel · 3.5.0 director · 3.4.0 hardened · 3.3–3.1 foundation
+3.7 ecosystem · 3.6 intel · 3.5 director · 3.4 hardened · 3.1–3.3 foundation
