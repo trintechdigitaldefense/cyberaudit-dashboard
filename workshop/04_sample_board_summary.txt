@@ -1,0 +1,10 @@
+BOARD SUMMARY — ONE PAGE (workshop sample)
+Client: Sample Organisation (anonymised)
+Posture: 42 / 100 — Needs focused work
+
+1. [HIGH] Remote desktop reachable — TT$60,000 – TT$200,000
+2. [CRITICAL] Open guest Wi-Fi — TT$40,000 – TT$150,000
+3. [HIGH] Old file-sharing (ransomware path) — TT$80,000 – TT$250,000
+
+Honest scope: point-in-time audit, not 24/7 monitoring.
+Contact: trintechdigitaldefense@gmail.com · 1-868-362-0679
