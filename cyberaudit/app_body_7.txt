@@ -12,18 +12,46 @@ def update_finding_status(fid: int):
         if cur.rowcount == 0:
             return jsonify({"error": "not_found"}), 404
     return jsonify({"ok": True, "id": fid, "status": status})
+
 @socketio.on("connect")
 def on_connect():
     if not socket_authenticated():
         disconnect()
         return False
+    from flask import request as _req
+    from flask import session as _sess
+    from cyberaudit.presence import record_connect, snapshot as presence_snapshot
+    username = (_sess.get("user") or _sess.get("username") or "operator")
+    role = (_sess.get("role") or "operator")
+    rec = record_connect(
+        sid=getattr(_req, "sid", "") or "",
+        username=str(username),
+        role=str(role),
+        ip=(_req.headers.get("X-Forwarded-For") or _req.remote_addr or "")[:64],
+        user_agent=(_req.headers.get("User-Agent") or "")[:120],
+    )
     emit(
         "status",
         {
             "msg": "Connected to CyberAudit live feed",
-            "time": datetime.datetime.now().isoformat(),
+            "time": rec.get("connected_at"),
+            "username": rec.get("username"),
         },
     )
+    emit("presence", presence_snapshot())
+    socketio.emit("presence", presence_snapshot())
+
+@socketio.on("disconnect")
+def on_disconnect():
+    from flask import request as _req
+    from cyberaudit.presence import record_disconnect, snapshot as presence_snapshot
+    sid = getattr(_req, "sid", "") or ""
+    record_disconnect(sid)
+    try:
+        socketio.emit("presence", presence_snapshot())
+    except Exception:
+        pass
+
 @socketio.on("request_snapshot")
 def on_snapshot():
     if not socket_authenticated():
@@ -37,13 +65,29 @@ def on_snapshot():
             ).fetchall()
         ]
     emit("snapshot", events)
+    from cyberaudit.presence import snapshot as presence_snapshot
+    emit("presence", presence_snapshot())
+
+@socketio.on("request_presence")
+def on_request_presence():
+    if not socket_authenticated():
+        disconnect()
+        return
+    from cyberaudit.presence import snapshot as presence_snapshot
+    emit("presence", presence_snapshot())
+
+@app.route("/api/presence")
+@login_required
+def api_presence():
+    from cyberaudit.presence import snapshot as presence_snapshot
+    return jsonify(presence_snapshot())
+
 _workers_started = False
 def start_background_workers():
     init_db()
     ensure_sample_playbooks()
     from cyberaudit.modules_bootstrap import ensure_modules_ready
     ensure_modules_ready()
-    # Real pipeline always: job runner executes queued audits
     from cyberaudit.workers import job_runner
     threading.Thread(target=job_runner, daemon=True).start()
     threading.Thread(target=inbox_poller, daemon=True).start()
@@ -62,12 +106,67 @@ def ensure_workers():
         return
     _workers_started = True
     start_background_workers()
+
+@app.route("/portal")
+@login_required
+def client_portal():
+    """P5.4 Plain-language client portal — green/yellow/red, zero jargon."""
+    from cyberaudit.db import get_db
+    posture = {}
+    top_risks = []
+    intel_cards = []
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT session_id, compliance_score, notes FROM audit_sessions "
+                "WHERE status='completed' ORDER BY end_time DESC LIMIT 1"
+            ).fetchone()
+        if row:
+            posture = {"session_id": row[0] if not hasattr(row, 'keys') else row["session_id"],
+                       "score": (row[1] if not hasattr(row, 'keys') else row["compliance_score"]) or 0}
+    except Exception:
+        pass
+    return render_template("portal.html", posture=posture, top_risks=top_risks, intel_cards=intel_cards)
+
+# --- Phase 7 Partner API (versioned) ---
+@app.route("/api/v1/health")
+def api_v1_health():
+    from cyberaudit.partner_api import partner_status_payload
+    from cyberaudit.airgap import airgap_status
+    body = partner_status_payload()
+    body["airgap"] = airgap_status()
+    return jsonify(body)
+
+@app.route("/api/v1/jobs", methods=["POST"])
+def api_v1_jobs_create():
+    from flask import request as _req
+    from cyberaudit.partner_api import verify_api_key, enqueue_partner_job
+    provided = _req.headers.get("X-API-Key", "")
+    if not provided:
+        auth = _req.headers.get("Authorization", "")
+        if auth.lower().startswith("bearer "):
+            provided = auth[7:].strip()
+    partner = verify_api_key(provided)
+    if not partner:
+        return jsonify({"error": "unauthorized", "api_version": "v1"}), 401
+    payload = _req.get_json(silent=True) or {}
+    try:
+        result = enqueue_partner_job(payload, partner)
+        return jsonify(result), 202
+    except ValueError as ve:
+        return jsonify({"error": "validation_error", "detail": str(ve)}), 400
+    except Exception as exc:
+        logger.exception("partner job")
+        return jsonify({"error": "server_error", "detail": str(exc)[:200]}), 500
+
+@app.route("/api/v1/status")
+def api_v1_status():
+    from cyberaudit.partner_api import partner_status_payload
+    from cyberaudit.airgap import airgap_status
+    return jsonify({"ok": True, **partner_status_payload(), "airgap": airgap_status()})
+
 if __name__ == "__main__":
     ensure_workers()
-    print("=" * 60)
-    print(f"  {COMPANY['name']} - {COMPANY['product']} {COMPANY['version']}")
-    print(f"  http://{config.HOST}:{config.PORT}")
-    print("=" * 60)
     socketio.run(
         app,
         host=config.HOST,
@@ -75,5 +174,3 @@ if __name__ == "__main__":
         debug=False,
         allow_unsafe_werkzeug=True,
     )
-else:
-    ensure_workers()
