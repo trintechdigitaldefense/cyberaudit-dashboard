@@ -3,87 +3,40 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#030712">
+  <meta name="theme-color" content="#0d1b2a">
   <title>Sign in · CyberAudit · TrinTech Digital Defense</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            cyber: { 950: '#030712', 900: '#080d18', 800: '#111827', 700: '#1a2438', accent: '#00d4aa', danger: '#ef4444' }
-          },
-          fontFamily: { sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'], mono: ['IBM Plex Mono', 'monospace'] }
-        }
-      }
-    }
-  </script>
-  <style>
-    body {
-      background:
-        radial-gradient(ellipse 90% 70% at 20% 10%, #152a45 0%, transparent 50%),
-        radial-gradient(ellipse 50% 40% at 90% 80%, rgba(0, 212, 170, 0.06) 0%, transparent 45%),
-        #030712;
-      color: #e2e8f0; min-height: 100vh;
-    }
-    .glass {
-      background: linear-gradient(165deg, rgba(17, 24, 39, 0.96), rgba(8, 13, 24, 0.94));
-      border: 1px solid rgba(0, 212, 170, 0.16);
-      box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 24px 64px rgba(0,0,0,0.55);
-    }
-    .chip {
-      font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500;
-      padding: 0.25rem 0.6rem; border-radius: 999px;
-      background: rgba(0, 212, 170, 0.07); color: #5eead4; border: 1px solid rgba(0, 212, 170, 0.18);
-    }
-  </style>
+  <script>tailwind.config={theme:{extend:{colors:{navy:{DEFAULT:'#0d1b2a'},teal:{DEFAULT:'#1b8a8f',50:'#eef8f9'}},fontFamily:{sans:['Inter','system-ui','sans-serif']}}}}</script>
+  <style>body{font-family:Inter,system-ui,sans-serif;background:#f4f6f8;}</style>
 </head>
-<body class="font-sans min-h-screen flex items-center justify-center px-4 py-12">
+<body class="min-h-screen flex items-center justify-center px-4 py-12">
   <div class="w-full max-w-md">
-    <div class="text-center mb-9">
-      <div class="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-cyber-accent/20 to-transparent border border-cyber-accent/25 items-center justify-center mb-5">
-        <svg class="w-8 h-8 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-        </svg>
+    <div class="text-center mb-8">
+      <div class="inline-flex w-12 h-12 rounded-xl bg-navy items-center justify-center mb-4">
+        <svg class="w-7 h-7 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
       </div>
-      <h1 class="text-2xl font-semibold text-white tracking-tight">CyberAudit</h1>
-      <p class="text-sm text-cyber-accent/90 font-mono mt-1.5">{{ company.name }}</p>
-      <p class="text-xs text-slate-500 mt-2 max-w-xs mx-auto leading-relaxed">{{ company.tagline }}</p>
+      <h1 class="text-2xl font-bold text-navy tracking-tight">CyberAudit</h1>
+      <p class="text-sm text-teal font-medium mt-1">{{ company.name }}</p>
+      <p class="text-xs text-slate-500 mt-2">{{ company.tagline }}</p>
     </div>
-    <div class="glass rounded-2xl p-8">
-      <div class="flex flex-wrap gap-2 mb-6 justify-center">
-        <span class="chip">Authenticated</span>
-        <span class="chip">Session logged</span>
-        <span class="chip">ROE scope</span>
-      </div>
-      <h2 class="text-sm font-semibold text-slate-100 mb-1">Operator sign-in</h2>
-      <p class="text-xs text-slate-500 mb-6">Authorised personnel only. Activity is recorded in the audit trail.</p>
-      {% if error %}
-      <div class="mb-5 text-sm text-red-300 bg-red-950/50 border border-red-900/60 rounded-xl px-3.5 py-2.5" role="alert">{{ error }}</div>
-      {% endif %}
+    <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+      <h2 class="text-sm font-semibold text-navy mb-1">Sign in</h2>
+      <p class="text-xs text-slate-500 mb-5">Authorised personnel only. Sessions are logged.</p>
+      {% if error %}<div class="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{{ error }}</div>{% endif %}
       <form method="post" action="{{ url_for('login', next=request.args.get('next', '')) }}" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5" for="username">Username</label>
-          <input id="username" name="username" type="text" autocomplete="username" required
-                 class="w-full rounded-xl bg-cyber-950 border border-cyber-700 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-2 focus:ring-cyber-accent/15">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5" for="username">Username</label>
+          <input id="username" name="username" type="text" autocomplete="username" required class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1.5" for="password">Password</label>
-          <input id="password" name="password" type="password" autocomplete="current-password" required
-                 class="w-full rounded-xl bg-cyber-950 border border-cyber-700 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-2 focus:ring-cyber-accent/15">
+          <label class="block text-xs font-medium text-slate-600 mb-1.5" for="password">Password</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20">
         </div>
-        <button type="submit"
-                class="w-full mt-1 rounded-xl bg-cyber-accent/15 text-cyber-accent hover:bg-cyber-accent/25 border border-cyber-accent/30 transition py-3 text-sm font-semibold tracking-wide">
-          Sign in securely
-        </button>
+        <button type="submit" class="w-full bg-teal text-white font-semibold text-sm rounded-lg py-2.5 hover:bg-[#167277]">Sign in securely</button>
       </form>
     </div>
-    <div class="mt-8 text-center space-y-2 text-[11px] text-slate-600 leading-relaxed">
-      <p>Point-in-time network audits · Hardened &amp; auditable platform</p>
-      <p class="font-mono text-slate-700">Computer Misuse Act Chap. 11:17 · Trinidad &amp; Tobago</p>
-      <p class="text-slate-500 font-mono">{{ company.email }} · {{ company.phone }}</p>
-    </div>
+    <p class="text-center text-[11px] text-slate-400 mt-6">Point-in-time audits · Hardened &amp; auditable · CMA Chap. 11:17<br>{{ company.email }} · {{ company.phone }}</p>
   </div>
 </body>
 </html>

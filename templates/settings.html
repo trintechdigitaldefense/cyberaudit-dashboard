@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="page-title">Settings</h1>
+  <p class="page-sub">Operational configuration. Credentials and secrets stay in the environment — never in the browser.</p>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+  <div class="card p-6 space-y-4">
+    <h2 class="text-sm font-semibold text-navy">Environment-level secrets</h2>
+    <p class="text-sm text-slate-600 leading-relaxed">Login passwords, <code class="text-xs bg-slate-100 px-1 rounded">CYBERAUDIT_SECRET</code>, ingest tokens, and API keys are set via environment variables. The UI does not accept or display them so they cannot leak through screenshots or XSS.</p>
+    <ul class="text-xs text-slate-500 space-y-1 list-disc list-inside">
+      <li>CYBERAUDIT_USER / CYBERAUDIT_PASSWORD (admin)</li>
+      <li>CYBERAUDIT_ANALYST_USER / PASSWORD</li>
+      <li>CYBERAUDIT_VIEWER_USER / PASSWORD (client role)</li>
+      <li>CYBERAUDIT_SECRET (required in production)</li>
+    </ul>
+  </div>
+  <div class="card p-6 space-y-3">
+    <h2 class="text-sm font-semibold text-navy">Runtime snapshot</h2>
+    <pre id="settings-snap" class="text-xs bg-slate-50 border border-slate-200 rounded-lg p-4 overflow-x-auto text-slate-600">Loading…</pre>
+  </div>
+  <div class="card p-6 lg:col-span-2">
+    <h2 class="text-sm font-semibold text-navy mb-2">Feature matrix (shipped)</h2>
+    <div id="feat-matrix" class="text-xs text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-3">Loading…</div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(async function(){
+  try{
+    const d=await (await fetch('/api/dashboard',{credentials:'same-origin'})).json();
+    const safe={demo_mode:d.demo_mode, host:d.host, port:d.port, airgap:d.airgap, community:d.community, license:d.license, findings_count:d.findings_count, role:d.role, username:d.username};
+    document.getElementById('settings-snap').textContent=JSON.stringify(safe,null,2);
+    const f=d.features||{};
+    const box=document.getElementById('feat-matrix');
+    box.innerHTML=['scanning','risk_reporting','operations','client_facing'].map(k=>{
+      const items=(f[k]||[]).map(i=>`<li>${i}</li>`).join('');
+      return `<div class="border border-slate-200 rounded-lg p-3 bg-slate-50"><div class="font-semibold text-navy mb-1 capitalize">${k.replace('_',' ')}</div><ul class="list-disc list-inside space-y-0.5">${items}</ul></div>`;
+    }).join('');
+  }catch(e){
+    document.getElementById('settings-snap').textContent='Unable to load snapshot';
+  }
+})();
+</script>
+{% endblock %}

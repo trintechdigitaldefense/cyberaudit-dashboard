@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="page-title">Clients</h1>
+  <p class="page-sub">Engagement workspaces derived from audit sessions (operator multi-tenant view).</p>
+</div>
+<div id="client-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+  <div class="card p-8 text-center text-slate-500">Loading clients…</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadClients(){
+  const grid=document.getElementById('client-grid');
+  try{
+    const d=await (await fetch('/api/dashboard',{credentials:'same-origin'})).json();
+    const sessions=d.sessions||[];
+    const map={};
+    sessions.forEach(s=>{
+      const key=(s.target||'unknown').trim()||'unknown';
+      if(!map[key]) map[key]={name:key, sessions:0, score:null, last:s.start_time||s.end_time, criticals:0};
+      map[key].sessions++;
+      if(s.compliance_score!=null) map[key].score=s.compliance_score;
+      map[key].criticals += (s.high_severity||0);
+      if((s.start_time||'') > (map[key].last||'')) map[key].last=s.start_time;
+    });
+    const cards=Object.values(map);
+    if(!cards.length){
+      grid.innerHTML='<div class="card p-10 text-center text-slate-500 md:col-span-2 xl:col-span-3"><div class="font-medium text-navy mb-1">No client workspaces yet</div>Queue your first authorised target from Overview.</div>';
+      return;
+    }
+    grid.innerHTML=cards.map(c=>`
+      <div class="card p-5 hover:border-teal/40 transition">
+        <div class="flex justify-between items-start gap-2 mb-3">
+          <h2 class="font-semibold text-navy font-mono text-sm break-all">${c.name}</h2>
+          <span class="text-2xl font-bold text-teal tabular-nums">${c.score!=null?Math.round(c.score):'—'}</span>
+        </div>
+        <div class="text-xs text-slate-500 space-y-1">
+          <div>Last activity: <span class="text-slate-700">${c.last||'—'}</span></div>
+          <div>Sessions: <span class="text-slate-700">${c.sessions}</span></div>
+          <div>High / critical (rollup): <span class="text-red-700 font-semibold">${c.criticals}</span></div>
+        </div>
+        <div class="mt-4 flex gap-2">
+          <a href="/findings" class="btn-outline text-xs py-1.5">Findings</a>
+          <a href="/reports" class="btn-teal text-xs py-1.5">Reports</a>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    grid.innerHTML='<div class="card p-8 text-slate-500">Unable to load client list.</div>';
+  }
+}
+loadClients();
+</script>
+{% endblock %}
