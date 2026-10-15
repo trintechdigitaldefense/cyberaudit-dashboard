@@ -1,53 +1,36 @@
 {% extends "base.html" %}
 {% block title %}Playbooks{% endblock %}
-
 {% block content %}
-<div class="mb-6">
-  <h1 class="text-2xl font-semibold text-white">Incident Response Playbooks</h1>
-  <p class="text-sm text-slate-400 mt-1">Automated &amp; manual containment procedures triggered by high-severity findings</p>
+<div class="mb-8">
+  <h1 class="text-2xl font-semibold text-white page-title">Incident response playbooks</h1>
+  <p class="text-sm text-slate-400 mt-1.5">Documented response steps for high-severity findings during an engagement. Operator-triggered only under ROE.</p>
 </div>
-
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-  {% for pb in playbooks %}
-  <div class="glass rounded-xl p-5 flex flex-col">
-    <div class="flex items-start justify-between mb-3">
-      <div class="w-10 h-10 rounded-lg bg-cyber-accent/10 flex items-center justify-center text-cyber-accent">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-        </svg>
-      </div>
-      <span class="text-[10px] font-mono text-slate-500">{{ (pb.size / 1024) | round(1) }} KB</span>
-    </div>
-    <h3 class="font-medium text-white text-sm mb-2 break-all">{{ pb.name }}</h3>
-    <pre class="text-xs text-slate-400 font-mono flex-1 overflow-hidden mb-4 leading-relaxed">{{ pb.preview }}</pre>
-    <div class="flex flex-wrap gap-2 mt-auto">
-      <a href="/playbook/{{ pb.name }}" class="flex-1 text-center px-3 py-1.5 rounded bg-cyber-700 hover:bg-cyber-600 text-xs transition">View</a>
-      <a href="/download/playbook/{{ pb.name }}" class="px-3 py-1.5 rounded bg-cyber-accent/10 text-cyber-accent hover:bg-cyber-accent/20 text-xs transition">DL</a>
-      <button type="button" data-pb="{{ pb.name }}" class="btn-trigger-pb px-3 py-1.5 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 text-xs transition">Trigger</button>
-    </div>
-  </div>
-  {% else %}
-  <div class="col-span-full text-center text-slate-500 py-12">No playbooks found.</div>
-  {% endfor %}
+<div class="glass rounded-xl overflow-hidden">
+  <table class="w-full text-sm data">
+    <thead>
+      <tr class="text-left border-b border-cyber-700 bg-cyber-900/40">
+        <th class="px-5 py-3.5">Playbook</th>
+        <th class="px-5 py-3.5">Size</th>
+        <th class="px-5 py-3.5 text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-cyber-800/80">
+      {% for p in playbooks %}
+      <tr class="hover:bg-cyber-800/25 transition">
+        <td class="px-5 py-4"><div class="font-mono text-sm text-cyber-accent">{{ p.name }}</div></td>
+        <td class="px-5 py-4 text-slate-500 text-xs tabular-nums">{{ (p.size / 1024) | round(1) }} KB</td>
+        <td class="px-5 py-4 text-right space-x-2">
+          <a href="/playbook/{{ p.name }}" class="inline-flex px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-cyber-800 border border-cyber-700 hover:border-cyber-600">View</a>
+          <a href="/download/playbook/{{ p.name }}" class="inline-flex px-3 py-1.5 rounded-lg text-xs font-medium btn-primary">Download</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="px-5 py-12 text-center text-slate-500 text-sm">No playbooks in library yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.querySelectorAll('.btn-trigger-pb').forEach(btn => {
-  btn.addEventListener('click', async () => {
-    const name = btn.getAttribute('data-pb');
-    const host = prompt('Optional target host for playbook ' + name) || '';
-    const res = await fetch('/api/playbooks/' + encodeURIComponent(name) + '/trigger', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({host})
-    });
-    const data = await res.json();
-    if (res.status === 403) { alert('Operator role required'); return; }
-    if (!res.ok) { alert(data.error || 'Failed'); return; }
-    alert('Queued ' + data.job.job_id);
-  });
-});
-</script>
+<div class="mt-6 glass rounded-xl p-5 text-xs text-slate-500 leading-relaxed max-w-2xl">
+  Playbooks guide containment steps for authorised operators. They do not auto-change client firewalls without your engagement process and ROE approval.
+</div>
 {% endblock %}
