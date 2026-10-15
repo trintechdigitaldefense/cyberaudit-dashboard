@@ -27,13 +27,13 @@
   </script>
   <style>
     body { background: #05080f; color: #e2e8f0; }
-    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(0, 212, 170, 0.12); }
-    .glow { box-shadow: 0 0 20px rgba(0, 212, 170, 0.15); }
-    .sev-critical { color: #ef4444; } .sev-high { color: #f97316; } .sev-medium { color: #f59e0b; }
-    .sev-low { color: #3b82f6; } .sev-info { color: #94a3b8; }
+    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(36, 48, 73, 0.6); }
     .pulse-dot { animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    .sev-critical, .sev-high { color: #ef4444; }
+    .sev-medium { color: #f59e0b; }
+    .sev-low, .sev-info { color: #3b82f6; }
+    ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0a101c; }
     ::-webkit-scrollbar-thumb { background: #243049; border-radius: 3px; }
   </style>
@@ -63,6 +63,10 @@
           <a href="/about" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/about' %}bg-cyber-700 text-cyber-accent{% endif %}">About</a>
         </div>
         <div class="flex items-center gap-3 text-xs font-mono text-slate-400">
+          <a href="/live" id="presence-nav" class="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyber-800/80 hover:bg-cyber-700 text-slate-300" title="Console presence">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span>
+            <span id="presence-nav-count">—</span>
+          </a>
           <span class="w-2 h-2 rounded-full bg-cyber-accent pulse-dot"></span>
           <span id="clock">--:--:--</span>
           <a href="/logout" class="text-slate-500 hover:text-cyber-accent transition" title="Sign out">Logout</a>
@@ -81,9 +85,26 @@
   </footer>
   <script>
     function updateClock() {
-      document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-TT', { hour12: false });
+      const now = new Date();
+      const el = document.getElementById('clock');
+      if (el) el.textContent = now.toLocaleTimeString('en-TT', { hour12: false });
     }
-    setInterval(updateClock, 1000); updateClock();
+    setInterval(updateClock, 1000);
+    updateClock();
+    async function refreshPresenceBadge() {
+      try {
+        const r = await fetch('/api/presence', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        const d = await r.json();
+        const n = d.active_count || 0;
+        const badge = document.getElementById('presence-nav-count');
+        const wrap = document.getElementById('presence-nav');
+        if (badge) badge.textContent = n + ' online';
+        if (wrap) wrap.classList.remove('hidden');
+      } catch (e) {}
+    }
+    refreshPresenceBadge();
+    setInterval(refreshPresenceBadge, 8000);
   </script>
   {% block scripts %}{% endblock %}
 </body>
