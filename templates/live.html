@@ -1,10 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Live Feed{% endblock %}
-
 {% block head %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
 {% endblock %}
-
 {% block content %}
 <div class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
   <div>
@@ -12,94 +10,82 @@
       <span class="w-3 h-3 rounded-full bg-cyber-accent pulse-dot"></span>
       Live Operations Feed
     </h1>
-    <p class="text-sm text-slate-400 mt-1">Real-time events from continuous IDS, exfil detection, threat intel & recon modules</p>
+    <p class="text-sm text-slate-400 mt-1">Point-in-time engagement events while an audit or operator session is active — not 24/7 monitoring.</p>
   </div>
   <div class="flex items-center gap-3 text-xs font-mono">
     <span id="conn-status" class="px-2 py-1 rounded bg-cyber-800 text-slate-400">Connecting…</span>
     <button onclick="clearFeed()" class="px-3 py-1.5 rounded bg-cyber-700 hover:bg-cyber-600 transition text-slate-300">Clear view</button>
   </div>
 </div>
-
-<div class="glass rounded-xl overflow-hidden">
-  <div class="px-4 py-2 border-b border-cyber-700 flex items-center gap-4 text-xs text-slate-500 font-mono">
-    <span class="w-20">TIME</span>
-    <span class="w-16">SEV</span>
-    <span class="w-40">MODULE</span>
-    <span class="flex-1">MESSAGE</span>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+  <div class="lg:col-span-1 glass rounded-xl overflow-hidden">
+    <div class="px-4 py-2 border-b border-cyber-700 flex items-center justify-between">
+      <span class="text-xs font-semibold text-cyber-accent tracking-wide uppercase">Console presence</span>
+      <span id="presence-count" class="text-[10px] font-mono text-slate-400">0 online</span>
+    </div>
+    <div class="px-3 py-2 text-[10px] text-slate-500 border-b border-cyber-900">Who is connected · when they joined · when they left (to the second)</div>
+    <div id="presence-active" class="max-h-40 overflow-y-auto p-2 space-y-1 text-xs font-mono"><div class="text-slate-600 px-1">Waiting for presence…</div></div>
+    <div class="px-3 py-1.5 border-t border-cyber-700 text-[10px] uppercase tracking-wide text-slate-500">Recent activity</div>
+    <div id="presence-history" class="max-h-48 overflow-y-auto p-2 space-y-1 text-[11px] font-mono"></div>
   </div>
-  <div id="feed" class="h-[65vh] overflow-y-auto p-2 font-mono text-xs space-y-0.5">
-    <!-- events injected here -->
+  <div class="lg:col-span-2 glass rounded-xl overflow-hidden">
+    <div class="px-4 py-2 border-b border-cyber-700 flex items-center gap-4 text-xs text-slate-500 font-mono">
+      <span class="w-36">TIME</span><span class="w-16">SEV</span><span class="w-36">MODULE</span><span class="flex-1">MESSAGE</span>
+    </div>
+    <div id="feed" class="h-[55vh] overflow-y-auto p-2 font-mono text-xs space-y-0.5"></div>
   </div>
 </div>
 {% endblock %}
-
 {% block scripts %}
 <script>
 const feed = document.getElementById('feed');
 const connStatus = document.getElementById('conn-status');
+const presenceActive = document.getElementById('presence-active');
+const presenceHistory = document.getElementById('presence-history');
+const presenceCount = document.getElementById('presence-count');
 let socket;
-
-function severityClass(sev) {
-  return 'sev-' + (sev || 'info');
-}
-
+function severityClass(sev) { return 'sev-' + (sev || 'info'); }
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function addEvent(e, prepend = true) {
   const row = document.createElement('div');
   row.className = 'flex gap-3 py-1.5 px-2 rounded hover:bg-cyber-800/40 border-b border-cyber-900/50';
-  const time = (e.timestamp || '').split(' ')[1] || e.timestamp || '—';
-  row.innerHTML = `
-    <span class="text-slate-500 w-20 shrink-0">${time}</span>
-    <span class="${severityClass(e.severity)} uppercase w-16 shrink-0 font-medium">${e.severity || 'info'}</span>
-    <span class="text-slate-400 w-40 shrink-0 truncate">${(e.module || '').replace('_module','')}</span>
-    <span class="text-slate-200 flex-1 break-words">${e.message || ''}</span>
-  `;
-  if (prepend) {
-    feed.insertBefore(row, feed.firstChild);
-  } else {
-    feed.appendChild(row);
-  }
-  while (feed.children.length > 200) {
-    feed.removeChild(feed.lastChild);
-  }
+  const time = e.timestamp || e.time || '—';
+  row.innerHTML = `<span class="text-slate-500 w-36 shrink-0">${time}</span><span class="${severityClass(e.severity)} uppercase w-16 shrink-0 font-medium">${e.severity || 'info'}</span><span class="text-slate-400 w-36 shrink-0 truncate">${(e.module || '').replace('_module','')}</span><span class="text-slate-200 flex-1 break-words">${e.message || ''}</span>`;
+  if (prepend) feed.insertBefore(row, feed.firstChild); else feed.appendChild(row);
+  while (feed.children.length > 200) feed.removeChild(feed.lastChild);
 }
-
-function clearFeed() {
-  feed.innerHTML = '';
+function clearFeed() { feed.innerHTML = ''; }
+function renderPresence(data) {
+  if (!data) return;
+  const active = data.active || [];
+  presenceCount.textContent = active.length + ' online';
+  if (!active.length) presenceActive.innerHTML = '<div class="text-slate-600 px-1">No operators connected</div>';
+  else presenceActive.innerHTML = active.map(p => `<div class="flex flex-col gap-0.5 px-2 py-1.5 rounded bg-cyber-900/60 border border-cyber-accent/20"><div class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span><span class="text-cyber-accent font-medium">${escapeHtml(p.username || 'operator')}</span><span class="text-slate-500">${escapeHtml(p.role || '')}</span></div><div class="text-slate-400 pl-3.5">Connected ${escapeHtml(p.connected_at || '—')}</div><div class="text-slate-600 pl-3.5 truncate">${escapeHtml(p.ip || '')}</div></div>`).join('');
+  const hist = data.history || [];
+  presenceHistory.innerHTML = hist.slice(0, 30).map(h => {
+    const isUp = h.event === 'connected' || h.status === 'connected';
+    const color = isUp ? 'text-cyber-accent' : 'text-cyber-danger';
+    const when = h.at || h.disconnected_at || h.connected_at || '—';
+    return `<div class="px-1 py-0.5 border-b border-cyber-900/40"><span class="${color} font-medium">${isUp ? 'CONNECTED' : 'DISCONNECTED'}</span><span class="text-slate-300"> ${escapeHtml(h.username || '')}</span><span class="text-slate-500"> · ${escapeHtml(when)}</span></div>`;
+  }).join('') || '<div class="text-slate-600 px-1">No history yet</div>';
 }
-
 function connect() {
-  socket = io();
+  socket = io({ transports: ['websocket', 'polling'] });
   socket.on('connect', () => {
     connStatus.textContent = 'LIVE';
     connStatus.className = 'px-2 py-1 rounded bg-green-900/50 text-cyber-accent font-medium';
     socket.emit('request_snapshot');
+    socket.emit('request_presence');
   });
   socket.on('disconnect', () => {
     connStatus.textContent = 'DISCONNECTED';
     connStatus.className = 'px-2 py-1 rounded bg-red-900/40 text-cyber-danger';
   });
-  socket.on('status', (data) => {
-    console.log('Status:', data);
-  });
-  socket.on('snapshot', (events) => {
-    feed.innerHTML = '';
-    events.slice().reverse().forEach(e => addEvent(e, false));
-  });
-  socket.on('live_event', (e) => {
-    addEvent(e, true);
-  });
+  socket.on('snapshot', (events) => { feed.innerHTML = ''; (events || []).slice().reverse().forEach(e => addEvent(e, false)); });
+  socket.on('live_event', (e) => addEvent(e, true));
+  socket.on('presence', (data) => renderPresence(data));
 }
-
 connect();
-
-setInterval(async () => {
-  if (socket && socket.connected) return;
-  try {
-    const res = await fetch('/api/events?limit=30');
-    const events = await res.json();
-    feed.innerHTML = '';
-    events.slice().reverse().forEach(e => addEvent(e, false));
-  } catch (err) {}
-}, 10000);
+setInterval(async () => { try { const r = await fetch('/api/presence', { credentials: 'same-origin' }); if (r.ok) renderPresence(await r.json()); } catch (e) {} }, 5000);
 </script>
 {% endblock %}
