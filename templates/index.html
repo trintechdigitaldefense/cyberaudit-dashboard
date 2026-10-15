@@ -1,6 +1,5 @@
 {% extends "base.html" %}
 {% block title %}Overview{% endblock %}
-
 {% block content %}
 <div class="mb-6 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
   <div>
@@ -12,192 +11,88 @@
     <span class="trust-chip">Audit trail enabled</span>
   </div>
 </div>
-
-<div class="glass glass-accent rounded-xl p-4 mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+<div class="glass glass-accent rounded-xl p-4 mb-4 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
   <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-cyber-accent/15 border border-cyber-accent/25 flex items-center justify-center">
-    <svg class="w-6 h-6 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-    </svg>
+    <svg class="w-6 h-6 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
   </div>
   <div class="flex-1 min-w-0">
     <div class="text-sm font-medium text-white">Your engagement is controlled and scoped</div>
-    <p class="text-xs text-slate-400 mt-1 leading-relaxed">
-      CyberAudit maps what is reachable <strong class="text-slate-300">during the agreed scan window</strong> from the authorised scanner location.
-      It is not 24/7 monitoring. Results support decisions on hardening — TrinTech delivers professional, ROE-bound assessments with plain-language board outputs.
-    </p>
+    <p class="text-xs text-slate-400 mt-1 leading-relaxed">CyberAudit maps what is reachable <strong class="text-slate-300">during the agreed scan window</strong>. It is not 24/7 monitoring.</p>
   </div>
   <a href="/portal" class="text-xs font-medium text-cyber-accent hover:underline whitespace-nowrap">Client portal →</a>
 </div>
-
+<div id="hub-strip" class="flex flex-wrap gap-2 mb-6"></div>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="kpi-row">
-  <div class="glass rounded-xl p-4 border-l-2 border-l-cyber-accent/50">
-    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Modules ready</div>
-    <div class="text-2xl font-semibold text-cyber-accent mt-1 tabular-nums" id="kpi-running">—</div>
-  </div>
-  <div class="glass rounded-xl p-4">
-    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Findings (sessions)</div>
-    <div class="text-2xl font-semibold text-white mt-1 tabular-nums" id="kpi-findings">—</div>
-  </div>
-  <div class="glass rounded-xl p-4">
-    <div class="text-[10px] text-slate-400 uppercase tracking-wider">High / critical</div>
-    <div class="text-2xl font-semibold text-cyber-danger mt-1 tabular-nums" id="kpi-high">—</div>
-  </div>
-  <div class="glass rounded-xl p-4">
-    <div class="text-[10px] text-slate-400 uppercase tracking-wider">Posture / compliance</div>
-    <div class="text-2xl font-semibold text-cyber-accent mt-1 tabular-nums" id="kpi-compliance">—</div>
-  </div>
+  <div class="glass rounded-xl p-4 border-l-2 border-l-cyber-accent/50"><div class="text-[10px] text-slate-400 uppercase tracking-wider">Modules ready</div><div class="text-2xl font-semibold text-cyber-accent mt-1 tabular-nums" id="kpi-running">—</div></div>
+  <div class="glass rounded-xl p-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider">Findings</div><div class="text-2xl font-semibold text-white mt-1 tabular-nums" id="kpi-findings">—</div></div>
+  <div class="glass rounded-xl p-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider">High / critical</div><div class="text-2xl font-semibold text-cyber-danger mt-1 tabular-nums" id="kpi-high">—</div></div>
+  <div class="glass rounded-xl p-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider">Posture</div><div class="text-2xl font-semibold text-cyber-accent mt-1 tabular-nums" id="kpi-compliance">—</div></div>
 </div>
-
 <div class="glass rounded-xl p-5 mb-6">
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-semibold text-slate-200">Queue authorised audit</h2>
-    <span class="text-[10px] font-mono text-slate-500">Operator only · ROE required</span>
-  </div>
+  <div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold text-slate-200">Queue authorised audit</h2><span class="text-[10px] font-mono text-slate-500">Operator · ROE required</span></div>
   <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-    <div class="flex-1">
-      <label class="text-xs text-slate-500 block mb-1.5">Target (in-scope host or subnet)</label>
-      <input id="audit-target" type="text" placeholder="e.g. 192.168.10.0/24 — must match signed ROE"
-             class="w-full rounded-lg bg-cyber-950 border border-cyber-700 px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-accent font-mono">
-    </div>
-    <button id="btn-start-audit" type="button"
-            class="px-5 py-2.5 rounded-lg bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30 hover:bg-cyber-accent/25 text-sm font-semibold transition">
-      Queue job
-    </button>
+    <div class="flex-1"><label class="text-xs text-slate-500 block mb-1.5">Target</label>
+      <input id="audit-target" type="text" placeholder="e.g. 192.168.10.0/24" class="w-full rounded-lg bg-cyber-950 border border-cyber-700 px-3 py-2.5 text-sm text-white font-mono focus:outline-none focus:border-cyber-accent"></div>
+    <button id="btn-start-audit" type="button" class="px-5 py-2.5 rounded-lg bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30 hover:bg-cyber-accent/25 text-sm font-semibold">Queue job</button>
   </div>
   <p id="audit-msg" class="text-xs text-slate-500 mt-2"></p>
 </div>
-
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-  <div class="lg:col-span-1 glass rounded-xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Pipeline modules</h2>
-      <span class="text-[10px] font-mono text-slate-500">status</span>
-    </div>
-    <div id="module-list" class="space-y-2 max-h-96 overflow-y-auto pr-1">
-      <div class="text-slate-500 text-sm">Loading…</div>
-    </div>
-  </div>
+  <div class="lg:col-span-1 glass rounded-xl p-5"><h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300 mb-4">Pipeline modules</h2><div id="module-list" class="space-y-2 max-h-96 overflow-y-auto"><div class="text-slate-500 text-sm">Loading…</div></div></div>
   <div class="lg:col-span-2 glass rounded-xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Recent audit sessions</h2>
-      <a href="/reports" class="text-xs text-cyber-accent hover:underline">Reports & downloads →</a>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-[10px] uppercase tracking-wider text-slate-500 border-b border-cyber-700">
-            <th class="pb-2.5 font-medium">Session</th>
-            <th class="pb-2.5 font-medium">Target</th>
-            <th class="pb-2.5 font-medium">Findings</th>
-            <th class="pb-2.5 font-medium">Score</th>
-            <th class="pb-2.5 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody id="session-table" class="divide-y divide-cyber-800">
-          <tr><td colspan="5" class="py-6 text-slate-500 text-center">Loading sessions…</td></tr>
-        </tbody>
-      </table>
-    </div>
+    <div class="flex items-center justify-between mb-4"><h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">Recent sessions</h2><a href="/reports" class="text-xs text-cyber-accent hover:underline">Reports →</a></div>
+    <table class="w-full text-sm"><thead><tr class="text-left text-[10px] uppercase text-slate-500 border-b border-cyber-700"><th class="pb-2">Session</th><th class="pb-2">Target</th><th class="pb-2">Findings</th><th class="pb-2">Score</th><th class="pb-2">Status</th></tr></thead>
+    <tbody id="session-table" class="divide-y divide-cyber-800"><tr><td colspan="5" class="py-6 text-center text-slate-500">Loading…</td></tr></tbody></table>
   </div>
 </div>
-
 <div class="mt-6 glass rounded-xl p-5">
-  <div class="flex items-center justify-between mb-3">
-    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-300">
-      <span class="inline-block w-2 h-2 rounded-full bg-cyber-accent pulse-dot mr-2"></span>
-      Live engagement stream
-    </h2>
-    <a href="/live" class="text-xs text-cyber-accent hover:underline">Full feed + presence →</a>
-  </div>
-  <p class="text-[10px] text-slate-500 mb-3">Events while an engagement is active — not continuous infrastructure monitoring.</p>
-  <div id="live-preview" class="space-y-2 font-mono text-xs">
-    <div class="text-slate-500">Connecting…</div>
-  </div>
+  <div class="flex items-center justify-between mb-3"><h2 class="text-sm font-semibold uppercase text-slate-300"><span class="inline-block w-2 h-2 rounded-full bg-cyber-accent pulse-dot mr-2"></span>Live stream</h2><a href="/live" class="text-xs text-cyber-accent hover:underline">Full feed →</a></div>
+  <div id="live-preview" class="space-y-2 font-mono text-xs"><div class="text-slate-500">Connecting…</div></div>
 </div>
 {% endblock %}
-
 {% block scripts %}
 <script>
-async function refreshOverview() {
-  try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    const running = (data.modules || []).filter(m => m.status === 'running').length;
-    const total = (data.modules || []).length;
-    document.getElementById('kpi-running').textContent = running ? (running + ' / ' + total) : (total + ' ready');
-    const totalFindings = (data.sessions || []).reduce((s, x) => s + (x.findings_count || 0), 0);
-    document.getElementById('kpi-findings').textContent = totalFindings;
-    const high = (data.sessions || []).reduce((s, x) => s + (x.high_severity || 0), 0);
-    document.getElementById('kpi-high').textContent = high;
-    const scores = (data.sessions || []).filter(s => s.compliance_score).map(s => s.compliance_score);
-    document.getElementById('kpi-compliance').textContent = scores.length
-      ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) + '%'
-      : '—';
-
-    const list = document.getElementById('module-list');
-    if (data.modules && data.modules.length) {
-      list.innerHTML = data.modules.map(m => {
-        const st = (m.status || 'idle').toLowerCase();
-        const color = st === 'running' ? 'bg-cyber-accent' : st === 'error' ? 'bg-cyber-danger' : st === 'ok' ? 'bg-cyber-info' : 'bg-slate-600';
-        const name = (m.name || m.module_name || m.id || '').replace(/_/g,' ').replace('module','');
-        return `<div class="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-cyber-800/50">
-          <span class="text-xs text-slate-300 truncate">${name}</span>
-          <span class="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
-            <span class="w-1.5 h-1.5 rounded-full ${color}"></span>${st}
-          </span>
-        </div>`;
-      }).join('');
-    } else {
-      list.innerHTML = '<div class="text-slate-500 text-sm">No modules registered yet</div>';
+async function refreshOverview(){
+  try{
+    const data=await (await fetch('/api/status')).json();
+    const running=(data.modules||[]).filter(m=>m.status==='running').length, total=(data.modules||[]).length;
+    document.getElementById('kpi-running').textContent=running?(running+' / '+total):(total+' ready');
+    document.getElementById('kpi-findings').textContent=(data.sessions||[]).reduce((s,x)=>s+(x.findings_count||0),0);
+    document.getElementById('kpi-high').textContent=(data.sessions||[]).reduce((s,x)=>s+(x.high_severity||0),0);
+    const scores=(data.sessions||[]).filter(s=>s.compliance_score).map(s=>s.compliance_score);
+    document.getElementById('kpi-compliance').textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+'%':'—';
+    const list=document.getElementById('module-list');
+    if(data.modules&&data.modules.length){
+      list.innerHTML=data.modules.map(m=>{const st=(m.status||'idle').toLowerCase();const color=st==='running'?'bg-cyber-accent':st==='error'?'bg-cyber-danger':'bg-slate-600';
+        const name=(m.name||m.module_name||m.id||'').replace(/_/g,' ');return `<div class="flex justify-between py-1.5 px-2 rounded-lg hover:bg-cyber-800/50"><span class="text-xs text-slate-300">${name}</span><span class="flex items-center gap-1.5 text-[10px] font-mono text-slate-500"><span class="w-1.5 h-1.5 rounded-full ${color}"></span>${st}</span></div>`;}).join('');
     }
-
-    const tbody = document.getElementById('session-table');
-    if (data.sessions && data.sessions.length) {
-      tbody.innerHTML = data.sessions.slice(0, 8).map(s => `
-        <tr class="hover:bg-cyber-800/30">
-          <td class="py-2.5 font-mono text-xs text-slate-300">${s.session_id || '—'}</td>
-          <td class="py-2.5 text-xs text-slate-400 font-mono">${s.target || '—'}</td>
-          <td class="py-2.5 text-xs">${s.findings_count || 0}</td>
-          <td class="py-2.5 text-xs text-cyber-accent">${s.compliance_score != null ? s.compliance_score : '—'}</td>
-          <td class="py-2.5"><span class="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-cyber-800 text-slate-300">${s.status || '—'}</span></td>
-        </tr>`).join('');
-    } else {
-      tbody.innerHTML = '<tr><td colspan="5" class="py-8 text-center text-slate-500 text-sm">No sessions yet — queue an authorised target above</td></tr>';
-    }
-
-    const lp = document.getElementById('live-preview');
-    const events = data.recent_events || [];
-    if (events.length) {
-      lp.innerHTML = events.slice(0, 8).map(e => `
-        <div class="flex gap-3 py-1 border-b border-cyber-900/60">
-          <span class="text-slate-600 w-36 shrink-0">${e.timestamp || ''}</span>
-          <span class="sev-${e.severity || 'info'} w-14 uppercase shrink-0">${e.severity || 'info'}</span>
-          <span class="text-slate-400 w-32 truncate shrink-0">${(e.module || '').replace('_module','')}</span>
-          <span class="text-slate-200 truncate">${e.message || ''}</span>
-        </div>`).join('');
-    }
-  } catch (e) { console.warn(e); }
+    const tbody=document.getElementById('session-table');
+    if(data.sessions&&data.sessions.length){tbody.innerHTML=data.sessions.slice(0,8).map(s=>`<tr class="hover:bg-cyber-800/30"><td class="py-2 font-mono text-xs">${s.session_id||'—'}</td><td class="py-2 text-xs font-mono text-slate-400">${s.target||'—'}</td><td class="py-2 text-xs">${s.findings_count||0}</td><td class="py-2 text-xs text-cyber-accent">${s.compliance_score!=null?s.compliance_score:'—'}</td><td class="py-2"><span class="text-[10px] px-2 py-0.5 rounded bg-cyber-800">${s.status||'—'}</span></td></tr>`).join('');}
+    else tbody.innerHTML='<tr><td colspan="5" class="py-8 text-center text-slate-500 text-sm">No sessions yet</td></tr>';
+    const events=data.recent_events||[]; const lp=document.getElementById('live-preview');
+    if(events.length) lp.innerHTML=events.slice(0,8).map(e=>`<div class="flex gap-3 py-1 border-b border-cyber-900/60"><span class="text-slate-600 w-36">${e.timestamp||''}</span><span class="sev-${e.severity||'info'} w-14 uppercase">${e.severity||'info'}</span><span class="text-slate-400 w-32 truncate">${(e.module||'').replace('_module','')}</span><span class="text-slate-200 truncate">${e.message||''}</span></div>`).join('');
+  }catch(e){console.warn(e);}
 }
-
-document.getElementById('btn-start-audit')?.addEventListener('click', async () => {
-  const target = document.getElementById('audit-target').value.trim();
-  const msg = document.getElementById('audit-msg');
-  if (!target) { msg.textContent = 'Enter an in-scope target from your ROE.'; return; }
-  msg.textContent = 'Queueing…';
-  try {
-    const res = await fetch('/api/jobs', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      credentials: 'same-origin',
-      body: JSON.stringify({ target })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) msg.textContent = data.message || 'Job queued — watch Live Feed for progress.';
-    else msg.textContent = data.error || ('Failed (' + res.status + ')');
-  } catch (e) { msg.textContent = 'Request failed'; }
+async function refreshDashboardHub(){
+  try{
+    const d=await (await fetch('/api/dashboard',{credentials:'same-origin'})).json();
+    const el=document.getElementById('hub-strip'); if(!el) return;
+    const ag=d.airgap&&d.airgap.airgap_mode?'Air-gap ON':'Standard mode';
+    const online=(d.presence&&d.presence.active_count)||0;
+    el.innerHTML=`<span class="trust-chip">${ag}</span><span class="trust-chip">${online} console online</span><span class="trust-chip">${d.findings_count||0} findings stored</span><span class="trust-chip">v${(d.features&&d.features.version)||''}</span>`;
+  }catch(e){}
+}
+document.getElementById('btn-start-audit')?.addEventListener('click',async()=>{
+  const target=document.getElementById('audit-target').value.trim(); const msg=document.getElementById('audit-msg');
+  if(!target){msg.textContent='Enter an in-scope target from your ROE.'; return;}
+  msg.textContent='Queueing…';
+  try{
+    const res=await fetch('/api/jobs',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({target})});
+    const data=await res.json().catch(()=>({}));
+    msg.textContent=res.ok?(data.message||data.job?.job_id||'Job queued'):(data.error||('Failed '+res.status));
+  }catch(e){msg.textContent='Request failed';}
 });
-
-refreshOverview();
-setInterval(refreshOverview, 12000);
+refreshOverview(); refreshDashboardHub();
+setInterval(refreshOverview,12000); setInterval(refreshDashboardHub,15000);
 </script>
 {% endblock %}
