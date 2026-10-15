@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}CyberAudit Dashboard{% endblock %} | TrinTech Digital Defense</title>
+  <meta name="description" content="CyberAudit by TrinTech Digital Defense — point-in-time network auditing for Trinidad & Tobago and the Caribbean.">
+  <title>{% block title %}CyberAudit{% endblock %} | TrinTech Digital Defense</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -13,8 +14,8 @@
         extend: {
           colors: {
             cyber: {
-              950: '#05080f', 900: '#0a101c', 800: '#111827', 700: '#1a2438', 600: '#243049',
-              accent: '#00d4aa', warn: '#f59e0b', danger: '#ef4444', info: '#3b82f6',
+              950: '#030712', 900: '#0a0f1a', 800: '#111827', 700: '#1a2438', 600: '#243049',
+              accent: '#00d4aa', warn: '#f59e0b', danger: '#ef4444', info: '#38bdf8',
             }
           },
           fontFamily: {
@@ -26,85 +27,112 @@
     }
   </script>
   <style>
-    body { background: #05080f; color: #e2e8f0; }
-    .glass { background: rgba(17, 24, 39, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(36, 48, 73, 0.6); }
+    body { background: radial-gradient(ellipse at top, #0c1526 0%, #030712 55%); color: #e2e8f0; min-height: 100vh; }
+    .glass {
+      background: linear-gradient(180deg, rgba(17,24,39,0.92) 0%, rgba(10,15,26,0.88) 100%);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(36, 48, 73, 0.75);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+    .glass-accent { border-color: rgba(0,212,170,0.22); }
     .pulse-dot { animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     .sev-critical, .sev-high { color: #ef4444; }
     .sev-medium { color: #f59e0b; }
-    .sev-low, .sev-info { color: #3b82f6; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0a101c; }
+    .sev-low, .sev-info { color: #38bdf8; }
+    .trust-chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 0.2rem 0.55rem; border-radius: 999px;
+      background: rgba(0,212,170,0.08); color: #00d4aa; border: 1px solid rgba(0,212,170,0.2);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0f1a; }
     ::-webkit-scrollbar-thumb { background: #243049; border-radius: 3px; }
   </style>
   {% block head %}{% endblock %}
 </head>
 <body class="font-sans antialiased min-h-screen flex flex-col">
-  <nav class="glass sticky top-0 z-50 border-b border-cyber-600/40">
+  <div class="bg-cyber-900/90 border-b border-cyber-600/40 text-[10px] font-mono text-slate-400">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> Hardened session</span>
+        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> Point-in-time audit</span>
+        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> ROE-bound scope</span>
+        <span class="hidden sm:inline trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-info"></span> CMA Chap. 11:17</span>
+      </div>
+      <div class="text-slate-500">{{ company.name }} · {{ company.product }} v{{ company.version }}</div>
+    </div>
+  </div>
+  <nav class="glass sticky top-0 z-50 border-b border-cyber-600/50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-14">
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded bg-cyber-accent/20 flex items-center justify-center">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyber-accent/30 to-cyber-accent/5 border border-cyber-accent/30 flex items-center justify-center">
             <svg class="w-5 h-5 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
           </div>
           <div>
             <div class="text-sm font-semibold tracking-wide text-white">CyberAudit</div>
-            <div class="text-[10px] text-cyber-accent/80 font-mono">TrinTech Digital Defense</div>
+            <div class="text-[10px] text-cyber-accent/90 font-mono">TrinTech Digital Defense</div>
           </div>
         </div>
-        <div class="hidden md:flex items-center gap-1 text-sm">
-          <a href="/" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/' %}bg-cyber-700 text-cyber-accent{% endif %}">Overview</a>
-          <a href="/live" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/live' %}bg-cyber-700 text-cyber-accent{% endif %}">Live Feed</a>
-          <a href="/findings" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/findings' %}bg-cyber-700 text-cyber-accent{% endif %}">Findings</a>
-          <a href="/reports" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/reports' %}bg-cyber-700 text-cyber-accent{% endif %}">Reports</a>
-          <a href="/playbooks" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path.startswith('/playbook') %}bg-cyber-700 text-cyber-accent{% endif %}">Playbooks</a>
-          <a href="/about" class="px-3 py-1.5 rounded hover:bg-cyber-700/60 transition {% if request.path == '/about' %}bg-cyber-700 text-cyber-accent{% endif %}">About</a>
+        <div class="hidden md:flex items-center gap-0.5 text-sm">
+          <a href="/" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Overview</a>
+          <a href="/live" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/live' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Live Feed</a>
+          <a href="/findings" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/findings' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Findings</a>
+          <a href="/reports" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/reports' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Reports</a>
+          <a href="/portal" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/portal' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Client Portal</a>
+          <a href="/playbooks" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path.startswith('/playbook') %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">Playbooks</a>
+          <a href="/about" class="px-3 py-1.5 rounded-lg hover:bg-cyber-700/60 {% if request.path == '/about' %}bg-cyber-700 text-cyber-accent{% else %}text-slate-300{% endif %}">About</a>
         </div>
         <div class="flex items-center gap-3 text-xs font-mono text-slate-400">
-          <a href="/live" id="presence-nav" class="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded bg-cyber-800/80 hover:bg-cyber-700 text-slate-300" title="Console presence">
-            <span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span>
+          <a href="/live" id="presence-nav" class="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyber-800/80 hover:bg-cyber-700 text-slate-300 border border-cyber-600/40" title="Console presence">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyber-accent pulse-dot"></span>
             <span id="presence-nav-count">—</span>
           </a>
-          <span class="w-2 h-2 rounded-full bg-cyber-accent pulse-dot"></span>
-          <span id="clock">--:--:--</span>
-          <a href="/logout" class="text-slate-500 hover:text-cyber-accent transition" title="Sign out">Logout</a>
+          <span id="clock" class="tabular-nums">--:--:--</span>
+          <a href="/logout" class="text-slate-500 hover:text-cyber-accent transition px-2 py-1 rounded hover:bg-cyber-800" title="Sign out">Logout</a>
         </div>
       </div>
     </div>
   </nav>
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-    {% block content %}{% endblock %}
-  </main>
-  <footer class="border-t border-cyber-700/50 mt-auto">
-    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
-      <div>© 2026 {{ company.name }} · {{ company.product }} v{{ company.version }} · Reg {{ company.reg_number }}</div>
-      <div class="font-mono">Port 1881 · Trinidad &amp; Tobago · Computer Misuse Act Chap. 11:17</div>
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">{% block content %}{% endblock %}</main>
+  <footer class="border-t border-cyber-700/60 mt-auto bg-cyber-950/80">
+    <div class="max-w-7xl mx-auto px-4 py-5">
+      <div class="flex flex-col md:flex-row justify-between gap-4 text-xs text-slate-500">
+        <div class="space-y-1">
+          <div class="text-slate-300 font-medium">{{ company.name }}</div>
+          <div>{{ company.tagline }}</div>
+          <div class="font-mono text-[10px]">{{ company.email }} · {{ company.phone }}</div>
+        </div>
+        <div class="md:text-right space-y-1 max-w-md">
+          <div class="text-slate-400">Engagements are <span class="text-cyber-accent">point-in-time</span> under signed Rules of Engagement.</div>
+          <div>Platform is <span class="text-cyber-accent">hardened and auditable</span> — not marketed as continuous monitoring.</div>
+          <div class="font-mono text-[10px]">Port 1881 · CMA Chap. 11:17 · {{ company.product }} v{{ company.version }}</div>
+        </div>
+      </div>
     </div>
   </footer>
   <script>
     function updateClock() {
-      const now = new Date();
       const el = document.getElementById('clock');
-      if (el) el.textContent = now.toLocaleTimeString('en-TT', { hour12: false });
+      if (el) el.textContent = new Date().toLocaleTimeString('en-TT', { hour12: false });
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateClock, 1000); updateClock();
     async function refreshPresenceBadge() {
       try {
         const r = await fetch('/api/presence', { credentials: 'same-origin' });
         if (!r.ok) return;
         const d = await r.json();
-        const n = d.active_count || 0;
         const badge = document.getElementById('presence-nav-count');
         const wrap = document.getElementById('presence-nav');
-        if (badge) badge.textContent = n + ' online';
+        if (badge) badge.textContent = (d.active_count || 0) + ' online';
         if (wrap) wrap.classList.remove('hidden');
       } catch (e) {}
     }
-    refreshPresenceBadge();
-    setInterval(refreshPresenceBadge, 8000);
+    refreshPresenceBadge(); setInterval(refreshPresenceBadge, 8000);
   </script>
   {% block scripts %}{% endblock %}
 </body>
