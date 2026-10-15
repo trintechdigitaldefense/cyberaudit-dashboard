@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login | CyberAudit | TrinTech Digital Defense</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <title>Secure sign-in | CyberAudit | TrinTech Digital Defense</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            cyber: { 950: '#05080f', 900: '#0a101c', 800: '#111827', 700: '#1a2438', accent: '#00d4aa', danger: '#ef4444' }
+            cyber: { 950: '#030712', 900: '#0a0f1a', 800: '#111827', 700: '#1a2438', accent: '#00d4aa', danger: '#ef4444' }
           },
           fontFamily: { sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'], mono: ['IBM Plex Mono', 'monospace'] }
         }
@@ -19,47 +19,63 @@
     }
   </script>
   <style>
-    body { background: #05080f; color: #e2e8f0; }
-    .glass { background: rgba(17, 24, 39, 0.85); border: 1px solid rgba(0, 212, 170, 0.15); }
+    body { background: radial-gradient(ellipse at 30% 20%, #0f1c32 0%, #030712 55%); color: #e2e8f0; min-height: 100vh; }
+    .glass {
+      background: linear-gradient(180deg, rgba(17,24,39,0.95), rgba(10,15,26,0.9));
+      border: 1px solid rgba(0, 212, 170, 0.18);
+      box-shadow: 0 0 0 1px rgba(0,212,170,0.06), 0 24px 48px rgba(0,0,0,0.5);
+    }
+    .chip {
+      font-size: 10px; letter-spacing: 0.03em; text-transform: uppercase;
+      padding: 0.25rem 0.6rem; border-radius: 999px;
+      background: rgba(0,212,170,0.08); color: #00d4aa; border: 1px solid rgba(0,212,170,0.2);
+    }
   </style>
 </head>
-<body class="font-sans min-h-screen flex items-center justify-center px-4">
+<body class="font-sans min-h-screen flex items-center justify-center px-4 py-10">
   <div class="w-full max-w-md">
     <div class="text-center mb-8">
-      <div class="inline-flex w-12 h-12 rounded-lg bg-cyber-accent/20 items-center justify-center mb-3">
-        <svg class="w-7 h-7 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="inline-flex w-14 h-14 rounded-xl bg-gradient-to-br from-cyber-accent/25 to-transparent border border-cyber-accent/30 items-center justify-center mb-4">
+        <svg class="w-8 h-8 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
         </svg>
       </div>
-      <h1 class="text-xl font-semibold text-white">CyberAudit</h1>
-      <p class="text-xs text-cyber-accent/80 font-mono mt-1">{{ company.name }}</p>
+      <h1 class="text-2xl font-semibold text-white tracking-tight">CyberAudit</h1>
+      <p class="text-sm text-cyber-accent/90 font-mono mt-1">{{ company.name }}</p>
+      <p class="text-xs text-slate-500 mt-2">{{ company.tagline }}</p>
     </div>
-
-    <div class="glass rounded-xl p-6 shadow-xl">
-      <h2 class="text-sm font-medium text-slate-300 mb-4">Operator sign-in</h2>
+    <div class="glass rounded-2xl p-7">
+      <div class="flex flex-wrap gap-2 mb-5 justify-center">
+        <span class="chip">Authenticated access</span>
+        <span class="chip">Session protected</span>
+        <span class="chip">ROE engagements</span>
+      </div>
+      <h2 class="text-sm font-medium text-slate-200 mb-1">Operator sign-in</h2>
+      <p class="text-xs text-slate-500 mb-5">Authorised personnel only. All activity is logged.</p>
       {% if error %}
-      <div class="mb-4 text-sm text-cyber-danger bg-red-900/20 border border-red-800/40 rounded px-3 py-2">{{ error }}</div>
+      <div class="mb-4 text-sm text-cyber-danger bg-red-950/40 border border-red-800/50 rounded-lg px-3 py-2.5">{{ error }}</div>
       {% endif %}
       <form method="post" action="{{ url_for('login', next=request.args.get('next', '')) }}" class="space-y-4">
         <div>
-          <label class="block text-xs text-slate-500 mb-1" for="username">Username</label>
+          <label class="block text-xs text-slate-400 mb-1.5" for="username">Username</label>
           <input id="username" name="username" type="text" autocomplete="username" required
-                 class="w-full rounded-lg bg-cyber-900 border border-cyber-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-accent">
+                 class="w-full rounded-lg bg-cyber-950 border border-cyber-700 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-1 focus:ring-cyber-accent/40">
         </div>
         <div>
-          <label class="block text-xs text-slate-500 mb-1" for="password">Password</label>
+          <label class="block text-xs text-slate-400 mb-1.5" for="password">Password</label>
           <input id="password" name="password" type="password" autocomplete="current-password" required
-                 class="w-full rounded-lg bg-cyber-900 border border-cyber-700 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyber-accent">
+                 class="w-full rounded-lg bg-cyber-950 border border-cyber-700 px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-cyber-accent focus:ring-1 focus:ring-cyber-accent/40">
         </div>
-        <button type="submit"
-                class="w-full rounded-lg bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 transition py-2.5 text-sm font-medium">
-          Sign in
+        <button type="submit" class="w-full rounded-lg bg-cyber-accent/20 text-cyber-accent hover:bg-cyber-accent/30 border border-cyber-accent/30 transition py-2.5 text-sm font-semibold tracking-wide">
+          Sign in securely
         </button>
       </form>
     </div>
-    <p class="text-center text-[10px] text-slate-600 mt-6 font-mono">
-      Secured session · Computer Misuse Act Chap. 11:17
-    </p>
+    <div class="mt-6 text-center space-y-2 text-[11px] text-slate-600">
+      <p>Point-in-time network audits · Hardened &amp; auditable platform</p>
+      <p class="font-mono">Computer Misuse Act Chap. 11:17 · Trinidad &amp; Tobago</p>
+      <p class="text-slate-500">{{ company.email }} · {{ company.phone }}</p>
+    </div>
   </div>
 </body>
 </html>

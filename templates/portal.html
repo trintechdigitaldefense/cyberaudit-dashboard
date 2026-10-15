@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Client Portal{% endblock %}
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold text-white">Your security check-up</h1>
+  <p class="text-sm text-slate-400 mt-1">Plain language. Results are from a <strong class="text-slate-300">point-in-time</strong> audit under agreed rules.</p>
+</div>
+<div class="glass glass-accent rounded-xl p-6 mb-6">
+  <div class="text-xs uppercase tracking-wider text-slate-500 mb-2">Overall health</div>
+  <div class="flex items-end gap-4 flex-wrap">
+    <div class="text-4xl font-semibold text-cyber-accent tabular-nums">{% if posture and posture.score %}{{ posture.score }}{% else %}—{% endif %}</div>
+    <div class="text-sm text-slate-400 pb-1">/ 100 posture score</div>
+  </div>
+  <p class="text-sm text-slate-300 mt-4 leading-relaxed">
+    {% if posture and posture.score is defined %}
+      {% if posture.score >= 80 %}Green — solid foundation. Keep patching and access reviews current.
+      {% elif posture.score >= 60 %}Yellow — manageable gaps. Fix the main items this month.
+      {% elif posture.score >= 40 %}Orange — needs focused work. Assign owners this week.
+      {% else %}Review findings with your TrinTech contact — prioritise the highest risks first.
+      {% endif %}
+    {% else %}Run an authorised audit to see your health score here.{% endif %}
+  </p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+  <div class="glass rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-slate-200 mb-3">What this means</h2>
+    <p class="text-sm text-slate-400 leading-relaxed">Like a medical check-up for your network: what was visible during the appointment, not continuous monitoring. Board summaries turn findings into next steps.</p>
+  </div>
+  <div class="glass rounded-xl p-5">
+    <h2 class="text-sm font-semibold text-slate-200 mb-3">How TrinTech works with you</h2>
+    <ul class="text-sm text-slate-400 space-y-2">
+      <li>• Signed scope before any scan</li>
+      <li>• Hardened tools and logged operator access</li>
+      <li>• Reports you can read without an IT degree</li>
+      <li>• Retest to prove what was fixed</li>
+    </ul>
+  </div>
+</div>
+<div class="flex flex-wrap gap-3">
+  <a href="/reports" class="px-4 py-2 rounded-lg bg-cyber-accent/15 text-cyber-accent border border-cyber-accent/30 text-sm font-medium hover:bg-cyber-accent/25">View reports</a>
+  <a href="/findings" class="px-4 py-2 rounded-lg bg-cyber-800 text-slate-300 border border-cyber-600 text-sm hover:bg-cyber-700">Technical findings</a>
+  <a href="/about" class="px-4 py-2 rounded-lg text-slate-400 text-sm hover:text-cyber-accent">About TrinTech</a>
+</div>
+{% endblock %}
