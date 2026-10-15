@@ -3,180 +3,162 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="CyberAudit by TrinTech Digital Defense — point-in-time network auditing for Trinidad & Tobago and the Caribbean.">
-  <meta name="theme-color" content="#030712">
+  <meta name="theme-color" content="#0d1b2a">
   <title>{% block title %}CyberAudit{% endblock %} | TrinTech Digital Defense</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            cyber: {
-              950: '#030712', 900: '#080d18', 850: '#0c1220', 800: '#111827',
-              700: '#1a2438', 600: '#243049', 500: '#334155',
-              accent: '#00d4aa', warn: '#f59e0b', danger: '#ef4444', info: '#38bdf8',
-            }
+            navy: { DEFAULT: '#0d1b2a', 800: '#1b2838', 700: '#243447', 50: '#eef2f6' },
+            teal: { DEFAULT: '#1b8a8f', 600: '#167277', 100: '#d7eef0', 50: '#eef8f9' },
+            soft: '#f4f6f8',
           },
-          fontFamily: {
-            sans: ['IBM Plex Sans', 'system-ui', 'sans-serif'],
-            mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
-          }
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
         }
       }
     }
   </script>
   <style>
-    :root { --border: rgba(36, 48, 73, 0.85); }
-    body {
-      background:
-        radial-gradient(ellipse 120% 80% at 50% -20%, #122038 0%, transparent 55%),
-        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(0, 212, 170, 0.04) 0%, transparent 40%),
-        #030712;
-      color: #e2e8f0; min-height: 100vh;
+    body { font-family: Inter, system-ui, sans-serif; background: #f4f6f8; color: #1e293b; }
+    .sidebar { background: #0d1b2a; }
+    .nav-link {
+      display: flex; align-items: center; gap: 0.65rem;
+      padding: 0.55rem 0.85rem; border-radius: 0.5rem;
+      font-size: 0.875rem; font-weight: 500; color: #94a3b8;
     }
-    .glass {
-      background: linear-gradient(165deg, rgba(17, 24, 39, 0.94) 0%, rgba(8, 13, 24, 0.9) 100%);
-      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 32px rgba(0,0,0,0.35);
+    .nav-link:hover { background: rgba(255,255,255,0.06); color: #e2e8f0; }
+    .nav-link.active { background: rgba(27,138,143,0.2); color: #5eead4; }
+    .card {
+      background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem;
+      box-shadow: 0 1px 2px rgba(13,27,42,0.04), 0 4px 16px rgba(13,27,42,0.05);
     }
-    .glass-accent { border-color: rgba(0, 212, 170, 0.28); }
-    .page-title { letter-spacing: -0.02em; }
-    .pulse-dot { animation: pulse 2s ease-in-out infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-    .sev-critical, .sev-high { color: #f87171; }
-    .sev-medium { color: #fbbf24; }
-    .sev-low, .sev-info { color: #7dd3fc; }
-    .trust-chip {
-      display: inline-flex; align-items: center; gap: 0.35rem;
-      font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500;
-      padding: 0.25rem 0.65rem; border-radius: 999px;
-      background: rgba(0, 212, 170, 0.07); color: #5eead4;
-      border: 1px solid rgba(0, 212, 170, 0.18);
+    .chip {
+      display: inline-flex; align-items: center; padding: 0.15rem 0.55rem;
+      border-radius: 999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
     }
-    .nav-item {
-      padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.8125rem; font-weight: 500;
-      color: #94a3b8; transition: color 0.12s, background 0.12s;
+    .chip-critical, .chip-high { background: #fef2f2; color: #b91c1c; }
+    .chip-medium { background: #fffbeb; color: #b45309; }
+    .chip-low, .chip-info { background: #f1f5f9; color: #475569; }
+    .chip-open { background: #fff7ed; color: #c2410c; }
+    .chip-remediation { background: #eff6ff; color: #1d4ed8; }
+    .chip-closed { background: #ecfdf5; color: #047857; }
+    .btn-teal {
+      background: #1b8a8f; color: #fff; font-weight: 600; font-size: 0.875rem;
+      padding: 0.5rem 1rem; border-radius: 0.5rem;
     }
-    .nav-item:hover { color: #e2e8f0; background: rgba(26, 36, 56, 0.8); }
-    .nav-item.active { color: #00d4aa; background: rgba(0, 212, 170, 0.1); }
-    .btn-primary {
-      background: rgba(0, 212, 170, 0.14); color: #00d4aa;
-      border: 1px solid rgba(0, 212, 170, 0.32);
-      font-weight: 600; border-radius: 0.5rem;
+    .btn-teal:hover { background: #167277; }
+    .btn-outline {
+      background: #fff; color: #0d1b2a; font-weight: 500; font-size: 0.875rem;
+      padding: 0.5rem 1rem; border-radius: 0.5rem; border: 1px solid #cbd5e1;
     }
-    .btn-primary:hover { background: rgba(0, 212, 170, 0.24); }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #243049; border-radius: 3px; }
-    @media (max-width: 768px) {
-      .mobile-nav { display: none; }
-      .mobile-nav.open { display: flex; }
+    .page-title { font-size: 1.5rem; font-weight: 700; color: #0d1b2a; letter-spacing: -0.02em; }
+    .page-sub { font-size: 0.875rem; color: #64748b; margin-top: 0.25rem; }
+    .input {
+      border: 1px solid #cbd5e1; border-radius: 0.5rem; padding: 0.5rem 0.75rem;
+      font-size: 0.875rem; background: #fff; color: #0f172a; width: 100%;
+    }
+    .input:focus { outline: none; border-color: #1b8a8f; box-shadow: 0 0 0 3px rgba(27,138,143,0.15); }
+    table.pro th {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+      font-weight: 600; color: #64748b; background: #f8fafc;
+    }
+    table.pro td { font-size: 0.875rem; vertical-align: top; }
+    @media (max-width: 1023px) {
+      .sidebar { position: fixed; inset: 0 auto 0 0; width: 16rem; z-index: 40;
+        transform: translateX(-100%); transition: transform 0.2s; }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(13,27,42,0.4); z-index: 30; }
+      .sidebar-backdrop.open { display: block; }
     }
   </style>
   {% block head %}{% endblock %}
 </head>
-<body class="font-sans antialiased min-h-screen flex flex-col">
-  <div class="border-b border-cyber-700/50 bg-cyber-950/95 text-[10px] font-mono text-slate-500">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex flex-wrap items-center justify-between gap-2">
-      <div class="flex flex-wrap items-center gap-1.5">
-        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> Hardened session</span>
-        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> Point-in-time</span>
-        <span class="trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-accent"></span> ROE-bound</span>
-        <span class="hidden sm:inline trust-chip"><span class="w-1.5 h-1.5 rounded-full bg-cyber-info"></span> CMA 11:17</span>
+<body class="min-h-screen flex">
+  <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleSidebar(false)"></div>
+  <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col min-h-screen text-white">
+    <div class="px-5 py-5 border-b border-white/10">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-teal/30 border border-teal/40 flex items-center justify-center">
+          <svg class="w-5 h-5 text-teal-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="text-sm font-semibold tracking-tight">CyberAudit</div>
+          <div class="text-[10px] text-slate-400 font-medium">TrinTech Digital Defense</div>
+        </div>
       </div>
-      <div class="text-slate-600">{{ company.name }} · {{ company.product }} <span class="text-slate-500">v{{ company.version }}</span></div>
     </div>
+    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" aria-label="Main">
+      {% set role = session.get('role', 'admin') if session.get('authenticated') else 'admin' %}
+      {% set is_client = role in ['viewer', 'client'] %}
+      {% set is_analyst = role in ['analyst', 'admin', 'operator'] or not is_client %}
+      {% set is_admin = role in ['admin'] %}
+      <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}"><span class="w-5 text-center opacity-70">⌂</span> Overview</a>
+      {% if is_analyst %}<a href="/live" class="nav-link {% if request.path == '/live' %}active{% endif %}"><span class="w-5 text-center opacity-70">◉</span> Live</a>{% endif %}
+      <a href="/findings" class="nav-link {% if request.path == '/findings' %}active{% endif %}"><span class="w-5 text-center opacity-70">☰</span> Findings</a>
+      <a href="/reports" class="nav-link {% if request.path == '/reports' %}active{% endif %}"><span class="w-5 text-center opacity-70">▤</span> Reports</a>
+      <a href="/posture" class="nav-link {% if request.path == '/posture' %}active{% endif %}"><span class="w-5 text-center opacity-70">◎</span> Posture</a>
+      {% if is_admin or is_analyst %}<a href="/clients" class="nav-link {% if request.path == '/clients' %}active{% endif %}"><span class="w-5 text-center opacity-70">▦</span> Clients</a>{% endif %}
+      {% if is_analyst %}<a href="/playbooks" class="nav-link {% if request.path.startswith('/playbook') %}active{% endif %}"><span class="w-5 text-center opacity-70">▹</span> Playbooks</a>{% endif %}
+      {% if is_admin %}<a href="/settings" class="nav-link {% if request.path == '/settings' %}active{% endif %}"><span class="w-5 text-center opacity-70">⚙</span> Settings</a>{% endif %}
+      <a href="/portal" class="nav-link {% if request.path == '/portal' %}active{% endif %}"><span class="w-5 text-center opacity-70">◇</span> Client Portal</a>
+      <a href="/about" class="nav-link {% if request.path == '/about' %}active{% endif %}"><span class="w-5 text-center opacity-70">ⓘ</span> About</a>
+    </nav>
+    <div class="px-4 py-4 border-t border-white/10 text-[11px] text-slate-500 space-y-1">
+      <div class="text-slate-400 font-medium truncate">{{ session.get('username', 'operator') }} · {{ session.get('role', 'admin') }}</div>
+      <div class="text-slate-600">Point-in-time · ROE-bound</div>
+      <a href="/logout" class="text-teal-100/80 hover:text-white">Sign out</a>
+    </div>
+  </aside>
+  <div class="flex-1 flex flex-col min-w-0 min-h-screen">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <div class="px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <button type="button" class="lg:hidden p-2 rounded-lg border border-slate-200 text-slate-600" onclick="toggleSidebar(true)" aria-label="Open menu">☰</button>
+          <div class="hidden sm:flex items-center gap-2 text-[11px] font-medium text-slate-500">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-100">Hardened session</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Point-in-time audit</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-slate-500">
+          <span id="presence-nav-count" class="hidden sm:inline">— online</span>
+          <span id="clock" class="tabular-nums font-medium text-slate-600">--:--:--</span>
+          <span class="text-slate-400">{{ company.product }} v{{ company.version }}</span>
+        </div>
+      </div>
+    </header>
+    <main class="flex-1 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">{% block content %}{% endblock %}</main>
+    <footer class="border-t border-slate-200 bg-white px-4 sm:px-6 lg:px-8 py-4 text-xs text-slate-500">
+      <div class="flex flex-col sm:flex-row justify-between gap-2">
+        <div>{{ company.name }} · <a class="text-teal hover:underline" href="mailto:{{ company.email }}">{{ company.email }}</a> · {{ company.phone }}</div>
+        <div>Engagements are point-in-time under signed ROE · Platform is hardened and auditable</div>
+      </div>
+    </footer>
   </div>
-  <header class="glass sticky top-0 z-50 border-b border-cyber-700/60">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex items-center justify-between h-14">
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-cyber-accent/25 to-transparent border border-cyber-accent/25 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-cyber-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-          </div>
-          <div class="min-w-0">
-            <div class="text-sm font-semibold text-white tracking-tight leading-none">CyberAudit</div>
-            <div class="text-[10px] text-cyber-accent/90 font-mono mt-0.5 truncate">TrinTech Digital Defense</div>
-          </div>
-        </div>
-        <nav class="hidden md:flex items-center gap-0.5" aria-label="Main">
-          <a href="/" class="nav-item {% if request.path == '/' %}active{% endif %}">Overview</a>
-          <a href="/live" class="nav-item {% if request.path == '/live' %}active{% endif %}">Live</a>
-          <a href="/findings" class="nav-item {% if request.path == '/findings' %}active{% endif %}">Findings</a>
-          <a href="/reports" class="nav-item {% if request.path == '/reports' %}active{% endif %}">Reports</a>
-          <a href="/portal" class="nav-item {% if request.path == '/portal' %}active{% endif %}">Portal</a>
-          <a href="/playbooks" class="nav-item {% if request.path.startswith('/playbook') %}active{% endif %}">Playbooks</a>
-          <a href="/about" class="nav-item {% if request.path == '/about' %}active{% endif %}">About</a>
-        </nav>
-        <div class="flex items-center gap-2 sm:gap-3 text-xs font-mono text-slate-500">
-          <button type="button" id="mobile-menu-btn" class="md:hidden p-2 rounded-lg hover:bg-cyber-800 text-slate-400" aria-label="Menu">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-          </button>
-          <a href="/live" id="presence-nav" class="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyber-850 border border-cyber-700/80 text-slate-400 hover:text-slate-200" title="Console presence">
-            <span class="w-1.5 h-1.5 rounded-full bg-cyber-accent pulse-dot"></span>
-            <span id="presence-nav-count">—</span>
-          </a>
-          <span id="clock" class="tabular-nums hidden sm:inline text-slate-500">--:--:--</span>
-          <a href="/logout" class="text-slate-500 hover:text-cyber-accent px-2 py-1 rounded-lg hover:bg-cyber-800 transition">Logout</a>
-        </div>
-      </div>
-      <nav id="mobile-nav" class="mobile-nav md:hidden flex-col gap-1 pb-3 border-t border-cyber-800 pt-2" aria-label="Mobile">
-        <a href="/" class="nav-item">Overview</a>
-        <a href="/live" class="nav-item">Live</a>
-        <a href="/findings" class="nav-item">Findings</a>
-        <a href="/reports" class="nav-item">Reports</a>
-        <a href="/portal" class="nav-item">Portal</a>
-        <a href="/playbooks" class="nav-item">Playbooks</a>
-        <a href="/about" class="nav-item">About</a>
-      </nav>
-    </div>
-  </header>
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">{% block content %}{% endblock %}</main>
-  <footer class="border-t border-cyber-800/80 mt-auto bg-cyber-950/90">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div class="flex flex-col md:flex-row justify-between gap-5 text-xs text-slate-500">
-        <div class="space-y-1.5">
-          <div class="text-slate-300 font-medium text-sm">{{ company.name }}</div>
-          <div class="max-w-sm leading-relaxed">{{ company.tagline }}</div>
-          <div class="font-mono text-[11px] text-slate-600 pt-1">
-            <a href="mailto:{{ company.email }}" class="hover:text-cyber-accent">{{ company.email }}</a> · {{ company.phone }}
-          </div>
-        </div>
-        <div class="md:text-right space-y-1.5 max-w-md leading-relaxed">
-          <div>Engagements are <span class="text-cyber-accent/90">point-in-time</span> under signed Rules of Engagement.</div>
-          <div>Platform is <span class="text-cyber-accent/90">hardened and auditable</span> — not continuous monitoring.</div>
-          <div class="font-mono text-[10px] text-slate-600 pt-1">Port 1881 · CMA Chap. 11:17 · {{ company.product }} v{{ company.version }}</div>
-        </div>
-      </div>
-    </div>
-  </footer>
   <script>
-    (function () {
-      function updateClock() {
-        var el = document.getElementById('clock');
-        if (el) el.textContent = new Date().toLocaleTimeString('en-TT', { hour12: false });
-      }
-      setInterval(updateClock, 1000); updateClock();
-      var btn = document.getElementById('mobile-menu-btn');
-      var nav = document.getElementById('mobile-nav');
-      if (btn && nav) btn.addEventListener('click', function () { nav.classList.toggle('open'); });
-      async function refreshPresenceBadge() {
-        try {
-          var r = await fetch('/api/presence', { credentials: 'same-origin' });
-          if (!r.ok) return;
-          var d = await r.json();
-          var badge = document.getElementById('presence-nav-count');
-          var wrap = document.getElementById('presence-nav');
-          if (badge) badge.textContent = (d.active_count || 0) + ' online';
-          if (wrap) wrap.classList.remove('hidden');
-        } catch (e) {}
-      }
-      refreshPresenceBadge(); setInterval(refreshPresenceBadge, 10000);
+    function toggleSidebar(open) {
+      var s = document.getElementById('sidebar');
+      var b = document.getElementById('sidebar-backdrop');
+      if (open) { s.classList.add('open'); b.classList.add('open'); }
+      else { s.classList.remove('open'); b.classList.remove('open'); }
+    }
+    function updateClock() {
+      var el = document.getElementById('clock');
+      if (el) el.textContent = new Date().toLocaleTimeString('en-TT', { hour12: false });
+    }
+    setInterval(updateClock, 1000); updateClock();
+    (async function() {
+      try {
+        var r = await fetch('/api/presence', { credentials: 'same-origin' });
+        if (!r.ok) return;
+        var d = await r.json();
+        var el = document.getElementById('presence-nav-count');
+        if (el) { el.textContent = (d.active_count || 0) + ' online'; el.classList.remove('hidden'); }
+      } catch (e) {}
     })();
   </script>
   {% block scripts %}{% endblock %}
