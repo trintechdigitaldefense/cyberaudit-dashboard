@@ -85,9 +85,9 @@ def start_background_workers():
             seed_sample_data()
         ensure_sample_reports()
         threading.Thread(target=live_feed_simulator, daemon=True).start()
-        logger.warning("DEMO_MODE=1 — synthetic feed ON (set DEMO_MODE=0 for production)")
+        logger.warning("DEMO_MODE=1 — synthetic feed ON")
     else:
-        logger.info("REAL MODE — job runner active; queue audits from Overview")
+        logger.info("REAL MODE — job runner active")
 def ensure_workers():
     global _workers_started
     if _workers_started:
@@ -98,24 +98,20 @@ def ensure_workers():
 @app.route("/portal")
 @login_required
 def client_portal():
-    from cyberaudit.db import get_db
     posture = {}
-    top_risks = []
-    intel_cards = []
     try:
         with get_db() as conn:
             row = conn.execute(
-                "SELECT session_id, compliance_score, notes FROM audit_sessions "
+                "SELECT session_id, compliance_score FROM audit_sessions "
                 "WHERE status='completed' ORDER BY end_time DESC LIMIT 1"
             ).fetchone()
         if row:
-            posture = {"session_id": row[0] if not hasattr(row, "keys") else row["session_id"],
-                       "score": (row[1] if not hasattr(row, "keys") else row["compliance_score"]) or 0}
+            posture = {"session_id": row["session_id"] if hasattr(row, "keys") else row[0],
+                       "score": (row["compliance_score"] if hasattr(row, "keys") else row[1]) or 0}
     except Exception:
         pass
-    return render_template("portal.html", posture=posture, top_risks=top_risks, intel_cards=intel_cards, company=COMPANY)
+    return render_template("portal.html", posture=posture, top_risks=[], intel_cards=[], company=COMPANY)
 
-# --- Dashboard feature hub ---
 @app.route("/api/dashboard")
 @login_required
 def api_dashboard():
@@ -156,7 +152,37 @@ def api_features():
 def api_jobs_post_alias():
     return start_audit()
 
-# --- Phase 7 Partner API ---
+@app.route("/posture")
+@login_required
+def posture_page():
+    posture = {}
+    try:
+        with get_db() as conn:
+            row = conn.execute(
+                "SELECT session_id, compliance_score FROM audit_sessions "
+                "WHERE compliance_score IS NOT NULL ORDER BY end_time DESC LIMIT 1"
+            ).fetchone()
+        if row:
+            score = row["compliance_score"] if hasattr(row, "keys") else row[1]
+            posture = {"score": score, "band": "", "trend": ""}
+    except Exception:
+        pass
+    return render_template("posture.html", company=COMPANY, posture=posture)
+
+@app.route("/clients")
+@login_required
+def clients_page():
+    if current_role() in ("viewer", "client"):
+        return redirect(url_for("index"))
+    return render_template("clients.html", company=COMPANY)
+
+@app.route("/settings")
+@login_required
+def settings_page():
+    if current_role() not in ("admin",):
+        return redirect(url_for("index"))
+    return render_template("settings.html", company=COMPANY)
+
 @app.route("/api/v1/health")
 def api_v1_health():
     from cyberaudit.partner_api import partner_status_payload
