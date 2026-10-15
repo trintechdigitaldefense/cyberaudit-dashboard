@@ -4,7 +4,7 @@
 def update_finding_status(fid: int):
     data = request.get_json(silent=True) or {}
     status = (data.get("status") or "").strip().lower()
-    if status not in ("open", "mitigated", "accepted", "false_positive"):
+    if status not in ("open", "in_remediation", "mitigated", "closed", "accepted", "false_positive", "new"):
         return jsonify({"error": "invalid status"}), 400
     with get_db() as conn:
         cur = conn.execute("UPDATE findings SET status=? WHERE id=?", (status, fid))
@@ -30,14 +30,7 @@ def on_connect():
         ip=(_req.headers.get("X-Forwarded-For") or _req.remote_addr or "")[:64],
         user_agent=(_req.headers.get("User-Agent") or "")[:120],
     )
-    emit(
-        "status",
-        {
-            "msg": "Connected to CyberAudit live feed",
-            "time": rec.get("connected_at"),
-            "username": rec.get("username"),
-        },
-    )
+    emit("status", {"msg": "Connected to CyberAudit live feed", "time": rec.get("connected_at"), "username": rec.get("username")})
     emit("presence", presence_snapshot())
     socketio.emit("presence", presence_snapshot())
 
@@ -58,12 +51,7 @@ def on_snapshot():
         disconnect()
         return
     with get_db() as conn:
-        events = [
-            dict(r)
-            for r in conn.execute(
-                "SELECT * FROM live_events ORDER BY id DESC LIMIT 25"
-            ).fetchall()
-        ]
+        events = [dict(r) for r in conn.execute("SELECT * FROM live_events ORDER BY id DESC LIMIT 25").fetchall()]
     emit("snapshot", events)
     from cyberaudit.presence import snapshot as presence_snapshot
     emit("presence", presence_snapshot())
@@ -110,7 +98,6 @@ def ensure_workers():
 @app.route("/portal")
 @login_required
 def client_portal():
-    """P5.4 Plain-language client portal — green/yellow/red, zero jargon."""
     from cyberaudit.db import get_db
     posture = {}
     top_risks = []
@@ -122,13 +109,54 @@ def client_portal():
                 "WHERE status='completed' ORDER BY end_time DESC LIMIT 1"
             ).fetchone()
         if row:
-            posture = {"session_id": row[0] if not hasattr(row, 'keys') else row["session_id"],
-                       "score": (row[1] if not hasattr(row, 'keys') else row["compliance_score"]) or 0}
+            posture = {"session_id": row[0] if not hasattr(row, "keys") else row["session_id"],
+                       "score": (row[1] if not hasattr(row, "keys") else row["compliance_score"]) or 0}
     except Exception:
         pass
-    return render_template("portal.html", posture=posture, top_risks=top_risks, intel_cards=intel_cards)
+    return render_template("portal.html", posture=posture, top_risks=top_risks, intel_cards=intel_cards, company=COMPANY)
 
-# --- Phase 7 Partner API (versioned) ---
+# --- Dashboard feature hub ---
+@app.route("/api/dashboard")
+@login_required
+def api_dashboard():
+    from cyberaudit.dashboard_features import system_snapshot
+    snap = system_snapshot()
+    with get_db() as conn:
+        modules = [dict(r) for r in conn.execute("SELECT * FROM module_status").fetchall()]
+        sessions = [dict(r) for r in conn.execute("SELECT * FROM audit_sessions ORDER BY start_time DESC LIMIT 15").fetchall()]
+        findings_n = conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0]
+        try:
+            high_n = conn.execute("SELECT COUNT(*) FROM findings WHERE lower(severity) IN ('high','critical')").fetchone()[0]
+        except Exception:
+            high_n = 0
+    snap["modules"] = modules
+    snap["sessions"] = sessions
+    snap["findings_count"] = findings_n
+    snap["high_critical_count"] = high_n
+    snap["role"] = current_role()
+    snap["username"] = session.get("username")
+    return jsonify(snap)
+
+@app.route("/api/reports")
+@login_required
+def api_reports_list():
+    from cyberaudit.report_archive import list_reports
+    q = request.args.get("q") or ""
+    return jsonify(list_reports(query=q, limit=100))
+
+@app.route("/api/features")
+@login_required
+def api_features():
+    from cyberaudit.dashboard_features import feature_matrix
+    return jsonify(feature_matrix())
+
+@app.route("/api/jobs", methods=["POST"])
+@login_required
+@operator_required
+def api_jobs_post_alias():
+    return start_audit()
+
+# --- Phase 7 Partner API ---
 @app.route("/api/v1/health")
 def api_v1_health():
     from cyberaudit.partner_api import partner_status_payload
@@ -167,10 +195,4 @@ def api_v1_status():
 
 if __name__ == "__main__":
     ensure_workers()
-    socketio.run(
-        app,
-        host=config.HOST,
-        port=config.PORT,
-        debug=False,
-        allow_unsafe_werkzeug=True,
-    )
+    socketio.run(app, host=config.HOST, port=config.PORT, debug=False, allow_unsafe_werkzeug=True)
