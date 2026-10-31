@@ -1,21 +1,20 @@
 # CyberAudit Changelog
 
+## 3.10.5 — 2026-10-30
+
+### Integration repair and release gate
+
+- **db.get_db / init_db**: always use `resolve_db_path()` + mkdir parent.
+- **claim_job**: `BEGIN IMMEDIATE` + conditional UPDATE (one winner).
+- **Version**: authoritative `cyberaudit/VERSION` (3.10.5) loaded by config.
+- **Tests**: `test_phase3105_gate.py` — tenant isolation, claim, ROE, signing, no version drift.
+- **pipeline_authorized**: remove dead `exp if False else` expressions.
+- **report_signing**: dedicated `CYBERAUDIT_REPORT_SECRET` (demo-only fallback).
+
 ## 3.10.4 — 2026-10-30
 
-### Sync release
-
-- Version bump to **3.10.4** (authoritative).
-- Tenant-aware `get_db`/`init_db`, static `pipeline_helpers`, authorized entry, and worker claim path.
-- CI includes 3.10.3 core tests; pip-audit remains blocking.
+Sync release with static helpers and authorized entry.
 
 ## 3.10.3 — 2026-10-30
 
-Core integration: tenant isolation without config.DB_PATH mutation, static helpers, unsigned pack reject.
-
-## 3.10.2 — 2026-10-30
-
-Authorized pipeline entry; zero-host honesty; CI pip-audit hard fail.
-
-## 3.10.1 / 3.10.0 — 2026-10-30
-
-Foundation phases and earlier integration attempts.
+Core integration attempt.
