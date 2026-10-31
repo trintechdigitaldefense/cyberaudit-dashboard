@@ -1,4 +1,4 @@
-"""SQLite access and domain writes."""
+"""SQLite access and domain writes — CyberAudit 3.10.5 tenant-aware."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 import sqlite3
+from pathlib import Path
 from typing import Any, Optional
 
 from cyberaudit import config
@@ -20,8 +21,22 @@ def set_socketio(sio) -> None:
     _socketio = sio
 
 
+def _db_path() -> Path:
+    try:
+        from cyberaudit.tenant_context import resolve_db_path
+        p = Path(resolve_db_path())
+    except Exception:
+        p = Path(config.DB_PATH)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+    return p
+
+
 def init_db() -> None:
-    with sqlite3.connect(config.DB_PATH) as conn:
+    path = _db_path()
+    with sqlite3.connect(str(path)) as conn:
         c = conn.cursor()
         c.execute(
             """
@@ -101,18 +116,38 @@ def init_db() -> None:
                 requested_by TEXT,
                 status TEXT,
                 created_at TEXT,
-                notes TEXT
+                notes TEXT,
+                claimed_by TEXT DEFAULT '',
+                claimed_at TEXT DEFAULT '',
+                heartbeat_at TEXT DEFAULT '',
+                attempt INTEGER DEFAULT 0,
+                max_attempts INTEGER DEFAULT 3,
+                payload_hash TEXT DEFAULT '',
+                session_id TEXT DEFAULT '',
+                last_error TEXT DEFAULT '',
+                finished_at TEXT DEFAULT ''
             )
             """
         )
         c.execute("CREATE INDEX IF NOT EXISTS idx_live_events_ts ON live_events(timestamp)")
-        c.execute("CREATE INDEX IF NOT EXISTS idx_live_events_id ON live_events(id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_findings_session ON findings(session_id)")
         conn.commit()
+    try:
+        from cyberaudit.phase1_db import migrate_phase1
+        migrate_phase1()
+    except Exception as exc:
+        logger.warning("phase1 migrate skipped: %s", exc)
+    try:
+        from cyberaudit.phase5_db import migrate_phase5
+        migrate_phase5()
+    except Exception as exc:
+        logger.warning("phase5 migrate skipped: %s", exc)
 
 
 def get_db():
-    conn = sqlite3.connect(config.DB_PATH, timeout=30)
+    """Open SQLite connection for the active tenant (or default when no tenant scope)."""
+    path = _db_path()
+    conn = sqlite3.connect(str(path), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
@@ -278,94 +313,3 @@ def prune_old_events() -> int:
         cur = conn.execute("DELETE FROM live_events WHERE timestamp < ?", (cutoff,))
         conn.commit()
         return cur.rowcount
-
-
-def seed_sample_data() -> None:
-    with get_db() as conn:
-        c = conn.cursor()
-        modules = [
-            ("nmap_module", "idle", "2026-08-29 18:12:00", "Ports 22,80,443 open", "1.4.2"),
-            ("openvas_module", "idle", "2026-08-29 18:15:30", "3 high, 7 medium findings", "2.0.1"),
-            ("tt_compliance_mapper", "idle", "2026-08-29 18:16:00", "Mapped to CMA s.3,6,7", "1.2.0"),
-            ("regional_threat_intel", "running", "2026-08-29 21:40:00", "Pulling TT-CSIRT feed", "1.1.3"),
-            ("patch_verification_module", "idle", "2026-08-29 17:55:00", "Baseline matched", "1.0.8"),
-            ("pdf_report_module", "idle", "2026-08-29 18:20:00", "Report generated", "1.3.0"),
-            ("incident_response_module", "idle", "2026-08-28 14:00:00", "No active IR", "1.1.0"),
-            ("data_exfiltration_module", "running", "2026-08-29 21:45:00", "Monitoring outbound flows", "1.0.5"),
-            ("continuous_ids_module", "running", "2026-08-29 21:50:00", "Log analysis active", "1.2.1"),
-            ("database_module", "idle", "2026-08-29 18:21:00", "Session archived", "1.0.2"),
-            ("diagnostics_module", "idle", "2026-08-29 16:00:00", "All binaries OK", "1.0.0"),
-        ]
-        for m in modules:
-            c.execute("INSERT OR REPLACE INTO module_status VALUES (?,?,?,?,?)", m)
-        sessions = [
-            (
-                "AUD-20260829-001",
-                "2026-08-29 17:30:00",
-                "2026-08-29 18:22:00",
-                "192.168.10.0/24",
-                "completed",
-                14,
-                3,
-                7,
-                4,
-                78.5,
-                "reports/CyberAudit_Report_AUD-20260829-001.pdf",
-                "Full internal subnet scan.",
-            ),
-        ]
-        for s in sessions:
-            c.execute(
-                """INSERT OR IGNORE INTO audit_sessions
-                   (session_id, start_time, end_time, target, status,
-                    findings_count, high_severity, medium_severity, low_severity,
-                    compliance_score, report_path, notes)
-                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                s,
-            )
-        findings = [
-            (
-                "AUD-20260829-001",
-                "192.168.10.12",
-                "443",
-                "high",
-                "Outdated TLS / weak cipher suite",
-                "CVE-2021-3450",
-                "Section 6",
-                "{}",
-                "open",
-                "2026-08-29 18:10:00",
-            ),
-            (
-                "AUD-20260829-001",
-                "192.168.10.12",
-                "22",
-                "medium",
-                "SSH password auth enabled",
-                "",
-                "Section 3",
-                "{}",
-                "open",
-                "2026-08-29 18:11:00",
-            ),
-            (
-                "AUD-20260829-001",
-                "192.168.10.45",
-                "80",
-                "high",
-                "Unauthenticated admin panel",
-                "",
-                "Section 7",
-                "{}",
-                "open",
-                "2026-08-29 18:15:00",
-            ),
-        ]
-        for f in findings:
-            c.execute(
-                """INSERT INTO findings
-                   (session_id, host, port, severity, title, cve, cma_section, evidence, status, created_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                f,
-            )
-        conn.commit()
