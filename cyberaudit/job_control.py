@@ -1,7 +1,7 @@
-"""Job control plane — CyberAudit 3.10.8.
+"""Job control plane — CyberAudit 3.10.9.
 
-Atomic claims, ownership-aware heartbeats and terminal transitions,
-stale recovery with conditional UPDATE.
+Unique claim tokens, ownership-aware heartbeats and terminal transitions,
+fail-closed dedup, conditional stale recovery.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import secrets
 import socket
 import time
 from datetime import datetime, timezone
@@ -68,8 +69,9 @@ def register_or_reject_duplicate(job: dict) -> tuple[bool, str]:
                    ON CONFLICT(payload_hash) DO UPDATE SET job_id=excluded.job_id, created_at=excluded.created_at""",
                 (h, job_id, now),
             )
-        except Exception:
-            pass
+        except Exception as dex:
+            conn.rollback()
+            return False, f"dedup write failed: {dex}"
         conn.execute("UPDATE audit_jobs SET payload_hash=? WHERE job_id=?", (h, job_id))
         conn.commit()
     return True, "ok"
@@ -103,22 +105,25 @@ def ensure_job_row(job: dict) -> None:
 
 
 def claim_job(job_id: str, *, worker_id: str | None = None) -> bool:
-    """Atomically claim. Running jobs only reclaimable after stale heartbeat."""
+    ok, _ = claim_job_with_token(job_id, worker_id=worker_id)
+    return ok
+
+
+def claim_job_with_token(job_id: str, *, worker_id: str | None = None) -> tuple[bool, str]:
+    """Return (success, claim_token). claimed_by stored as worker_id|token."""
     ensure_job_schema()
     wid = worker_id or WORKER_ID
+    token = secrets.token_hex(8)
+    owner = f"{wid}|{token}"
     now = _now()
     try:
         from datetime import timedelta
         stale_cutoff = (datetime.now(timezone.utc) - timedelta(seconds=STALE_SECONDS)).strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         stale_cutoff = "1970-01-01 00:00:00"
-
     with get_db() as conn:
         conn.execute("BEGIN IMMEDIATE")
-        row = conn.execute(
-            "SELECT job_id FROM audit_jobs WHERE job_id=?", (job_id,)
-        ).fetchone()
-        if not row:
+        if not conn.execute("SELECT job_id FROM audit_jobs WHERE job_id=?", (job_id,)).fetchone():
             conn.execute(
                 """INSERT OR IGNORE INTO audit_jobs (job_id, status, attempt, max_attempts, created_at)
                    VALUES (?, 'queued', 0, ?, ?)""",
@@ -133,27 +138,49 @@ def claim_job(job_id: str, *, worker_id: str | None = None) -> bool:
                  AND (
                    status IN ('queued', 'stale')
                    OR (status = 'failed' AND COALESCE(attempt,0) < COALESCE(max_attempts, 3))
-                   OR (status IN ('running', 'claimed') AND claimed_by = ?)
                    OR (
                      status IN ('running', 'claimed')
                      AND heartbeat_at IS NOT NULL AND heartbeat_at != '' AND heartbeat_at < ?
                    )
                  )""",
-            (wid, now, now, job_id, wid, stale_cutoff),
+            (owner, now, now, job_id, stale_cutoff),
         )
         ok = cur.rowcount >= 1
         conn.commit()
-        return bool(ok)
+        return (True, token) if ok else (False, "")
 
 
-def heartbeat(job_id: str, detail: str = "", *, worker_id: str | None = None) -> bool:
+def _owner_matches(stored: str, worker_id: str, claim_token: str | None = None) -> bool:
+    if not stored:
+        return False
+    if claim_token:
+        return stored == f"{worker_id}|{claim_token}"
+    if stored == worker_id:
+        return True
+    return stored.startswith(worker_id + "|")
+
+
+def heartbeat(
+    job_id: str,
+    detail: str = "",
+    *,
+    worker_id: str | None = None,
+    claim_token: str | None = None,
+) -> bool:
     wid = worker_id or WORKER_ID
     now = _now()
     with get_db() as conn:
+        row = conn.execute(
+            "SELECT claimed_by, status FROM audit_jobs WHERE job_id=?", (job_id,)
+        ).fetchone()
+        if not row or (row["status"] or "") not in ("running", "claimed"):
+            return False
+        if not _owner_matches(row["claimed_by"] or "", wid, claim_token):
+            return False
         cur = conn.execute(
             """UPDATE audit_jobs SET heartbeat_at=? WHERE job_id=? AND claimed_by=?
                AND status IN ('running','claimed')""",
-            (now, job_id, wid),
+            (now, job_id, row["claimed_by"]),
         )
         conn.commit()
         return cur.rowcount >= 1
@@ -207,6 +234,7 @@ def mark_job(
     session_id: str = "",
     *,
     worker_id: str | None = None,
+    claim_token: str | None = None,
     require_owner: bool = True,
 ) -> bool:
     ensure_job_schema()
@@ -221,30 +249,30 @@ def mark_job(
             conn.commit()
             return False
         cur_status = (row["status"] or "").lower()
+        claimed = row["claimed_by"] or ""
         if cur_status == "completed" and status != "completed":
             conn.commit()
             return False
-        if require_owner and cur_status in ("running", "claimed") and status in ("completed", "failed"):
-            owner = row["claimed_by"] or ""
-            if owner and owner != wid:
+        if require_owner and status in ("completed", "failed"):
+            if cur_status in ("running", "claimed"):
+                if not claimed or not _owner_matches(claimed, wid, claim_token):
+                    conn.commit()
+                    return False
+            cur = conn.execute(
+                """UPDATE audit_jobs SET status=?, session_id=COALESCE(NULLIF(?,''), session_id),
+                   last_error=?, finished_at=?, heartbeat_at=?
+                   WHERE job_id=? AND claimed_by=? AND status != 'completed'""",
+                (status, session_id, (error or "")[:500], now, now, job_id, claimed),
+            )
+        elif not require_owner and status in ("completed", "failed"):
+            if cur_status not in ("queued", "stale", "failed"):
                 conn.commit()
                 return False
-        if status in ("completed", "failed"):
-            if require_owner:
-                cur = conn.execute(
-                    """UPDATE audit_jobs SET status=?, session_id=COALESCE(NULLIF(?,''), session_id),
-                       last_error=?, finished_at=?, heartbeat_at=?
-                       WHERE job_id=?
-                         AND (claimed_by=? OR claimed_by IS NULL OR claimed_by='' OR status NOT IN ('running','claimed'))
-                         AND status != 'completed'""",
-                    (status, session_id, (error or "")[:500], now, now, job_id, wid),
-                )
-            else:
-                cur = conn.execute(
-                    """UPDATE audit_jobs SET status=?, session_id=COALESCE(NULLIF(?,''), session_id),
-                       last_error=?, finished_at=?, heartbeat_at=? WHERE job_id=? AND status != 'completed'""",
-                    (status, session_id, (error or "")[:500], now, now, job_id),
-                )
+            cur = conn.execute(
+                """UPDATE audit_jobs SET status=?, session_id=COALESCE(NULLIF(?,''), session_id),
+                   last_error=?, finished_at=? WHERE job_id=? AND status IN ('queued','stale','failed')""",
+                (status, session_id, (error or "")[:500], now, job_id),
+            )
         else:
             cur = conn.execute(
                 "UPDATE audit_jobs SET status=?, last_error=? WHERE job_id=?",
@@ -255,7 +283,13 @@ def mark_job(
         return bool(ok)
 
 
-def transactional_finalize(result: dict, job_id: str = "", *, worker_id: str | None = None) -> dict:
+def transactional_finalize(
+    result: dict,
+    job_id: str = "",
+    *,
+    worker_id: str | None = None,
+    claim_token: str | None = None,
+) -> dict:
     jid = job_id or (result.get("job_id") if isinstance(result, dict) else "") or ""
     if not isinstance(result, dict):
         result = {"status": "failed", "error": "invalid result"}
@@ -270,7 +304,26 @@ def transactional_finalize(result: dict, job_id: str = "", *, worker_id: str | N
         result["status"] = "failed"
         result["error"] = str(exc)[:300]
     if status == "completed":
-        mark_job(jid, "completed", session_id=str(result.get("session_id") or ""), worker_id=worker_id)
+        ok = mark_job(
+            jid, "completed",
+            session_id=str(result.get("session_id") or ""),
+            worker_id=worker_id,
+            claim_token=claim_token,
+            require_owner=True,
+        )
+        if not ok:
+            result["status"] = "failed"
+            result["error"] = "ownership lost before completion — not marked completed"
+            mark_job(
+                jid, "failed", error=result["error"],
+                worker_id=worker_id, claim_token=claim_token, require_owner=True,
+            )
     else:
-        mark_job(jid, "failed", error=str(result.get("error") or status)[:500], worker_id=worker_id)
+        mark_job(
+            jid, "failed",
+            error=str(result.get("error") or status)[:500],
+            worker_id=worker_id,
+            claim_token=claim_token,
+            require_owner=True,
+        )
     return result
