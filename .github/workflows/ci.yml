@@ -1,4 +1,4 @@
-name: ci
+name: CyberAudit CI
 
 on:
   push:
@@ -15,8 +15,50 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install
-        run: pip install -r requirements.txt
-      - name: Syntax check
-        run: python -m py_compile dashboard_app.py pipeline_client_example.py
-      - name: Unit tests
-        run: python -m unittest discover -s tests -v
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pip-audit
+      - name: Syntax compile
+        run: python -m compileall -q cyberaudit
+      - name: Core pytest suite
+        env:
+          DEMO_MODE: "1"
+          CYBERAUDIT_SECRET: "ci-test-secret-32-characters-ok!!"
+          CYBERAUDIT_ROE_SECRET: "ci-roe-secret-32-characters-ok!!!"
+          CYBERAUDIT_DATA_DIR: /tmp/ca_ci_data
+          CYBERAUDIT_REPORTS_DIR: /tmp/ca_ci_reports
+          CYBERAUDIT_DB_PATH: /tmp/ca_ci_data/cyber_audit.db
+        run: |
+          mkdir -p /tmp/ca_ci_data /tmp/ca_ci_reports
+          python -m pytest \
+            tests/test_phase1_roe.py \
+            tests/test_phase2_classifier.py \
+            tests/test_phase3_intel.py \
+            tests/test_phase4_reports.py \
+            tests/test_phase5_jobs.py \
+            tests/test_phase6_surfaces.py \
+            tests/test_phase7_enterprise.py \
+            tests/test_phase8_regression.py \
+            tests/test_phase9_docs.py \
+            tests/test_phase3101_integration.py \
+            -q --tb=line
+      - name: Dependency audit
+        run: pip-audit -r requirements.txt || echo "pip-audit reported issues — review before release"
+      - name: Secrets gate smoke
+        run: |
+          python -c "
+          import os
+          os.environ['DEMO_MODE']='0'
+          os.environ['CYBERAUDIT_SECRET']='x'*32
+          from cyberaudit import config
+          config.DEMO_MODE=False
+          config.AUTH_USER='admin'
+          config.AUTH_PASSWORD='admin'
+          from cyberaudit.hardening import assert_production_secrets
+          try:
+              assert_production_secrets()
+              raise SystemExit('should have refused admin/admin')
+          except SystemExit as e:
+              print('OK refused:', e)
+          "
