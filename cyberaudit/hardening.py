@@ -64,6 +64,13 @@ def configure_session_security(app) -> None:
         app.config["SESSION_COOKIE_SECURE"] = True
 
 
+def rotate_session_on_login(session_obj) -> None:
+    try:
+        session_obj.clear()
+    except Exception:
+        pass
+
+
 _rate_lock = threading.Lock()
 _rate_buckets: dict[str, list[float]] = defaultdict(list)
 
@@ -80,12 +87,12 @@ def rate_limit(key: str, max_calls: int, window_seconds: float) -> bool:
         return True
 
 
-def rate_limited(max_calls: int = 10, window_seconds: float = 60.0):
+def rate_limited(max_calls: int = 10, window_seconds: float = 60.0, *, key_fn: Callable | None = None):
     def decorator(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
             from flask import jsonify, request
-            ident = request.remote_addr or "unknown"
+            ident = key_fn() if key_fn else (request.remote_addr or "unknown")
             if not rate_limit(f"{view.__name__}:{ident}", max_calls, window_seconds):
                 return jsonify({"error": "rate_limited", "retry_after": window_seconds}), 429
             return view(*args, **kwargs)
@@ -273,9 +280,37 @@ def dependency_audit_hint() -> dict:
     }
 
 
-def fail_safe_job(fn: Callable, job: dict, *, cleanup: Callable | None = None) -> dict:
+def fail_safe_cleanup_partial(job_id: str | None) -> None:
+    """Remove zero-byte / incomplete report files for a failed job so UI stays honest."""
+    if not job_id:
+        return
     try:
-        return fn(job)
+        reports = config.REPORTS_DIR
+        if not reports.exists():
+            return
+        for p in reports.glob(f"*{job_id}*"):
+            try:
+                if p.is_file() and p.stat().st_size < 32:
+                    p.unlink(missing_ok=True)
+            except Exception:
+                pass
+    except Exception as exc:
+        logger.debug("partial cleanup: %s", exc)
+
+
+def fail_safe_job(fn: Callable, job: dict, *, cleanup: Callable | None = None) -> dict:
+    """Run job function; on any exception mark failed, run cleanup, never re-raise queue hang."""
+    try:
+        result = fn(job)
+        if isinstance(result, dict) and result.get("status") == "completed":
+            primary = result.get("report")
+            if primary:
+                p = Path(str(primary))
+                if not p.is_file():
+                    logger.error("completed job missing primary report: %s", primary)
+                    result["status"] = "failed"
+                    result["error"] = "primary report missing after pipeline"
+        return result if isinstance(result, dict) else {"status": "completed", "raw": result}
     except Exception as exc:
         logger.exception("fail-safe caught job error: %s", exc)
         try:
@@ -283,6 +318,10 @@ def fail_safe_job(fn: Callable, job: dict, *, cleanup: Callable | None = None) -
                 cleanup(job, exc)
         except Exception as cexc:
             logger.error("cleanup failed: %s", cexc)
+        try:
+            fail_safe_cleanup_partial(job.get("job_id"))
+        except Exception:
+            pass
         return {
             "status": "failed",
             "error": str(exc)[:500],
