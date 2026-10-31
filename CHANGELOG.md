@@ -1,15 +1,17 @@
 # CyberAudit Changelog
 
-## 3.10.9 — 2026-10-30
+## 3.10.9 — 2026-10-30/31
 
-### Production hardening
+### Production hardening (continued)
 
-- Unique claim tokens (`worker_id|token`) per claim execution.
-- Ownership-required terminal transitions; blank owner cannot complete/fail running jobs.
-- Heartbeat ownership loss signals pipeline stop.
-- `_mark_job_status` disabled (raises).
-- Dedup write failures fail closed.
-- VERSION 3.10.9.
+- No exec loader: `app.py` imports `app_impl` statically.
+- Claim tokens + ownership-stop heartbeat + disabled `_mark_job_status`.
+- Dedup fail-closed on write errors.
+- SQLite online backup API + integrity_check; atomic restore.
+- Atomic engagement pack publish (`.partial` → verified → replace).
+- PDF structural validation in pack builder.
+- `safe_next_url` open-redirect guard.
+- Tenant-aware reports/jobs helpers in app_impl and board_summary.
 
 ## 3.10.8 — 2026-10-30
 

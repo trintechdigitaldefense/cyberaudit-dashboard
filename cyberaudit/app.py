@@ -1,5 +1,9 @@
-"""CyberAudit Flask application."""
-from pathlib import Path
-_dir = Path(__file__).parent
-_code = "".join((_dir / f"app_body_{i}.txt").read_text(encoding="utf-8") for i in range(8))
-exec(compile(_code, str(Path(__file__).with_name("app_impl.py")), "exec"), globals())
+"""CyberAudit Flask application — static import (no exec).
+
+3.10.9: dynamic app_body assembly removed. Implementation lives in app_impl.
+"""
+from __future__ import annotations
+
+from cyberaudit.app_impl import app, socketio  # noqa: F401
+
+__all__ = ["app", "socketio"]
