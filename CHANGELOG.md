@@ -2,16 +2,20 @@
 
 ## 3.10.0 — 2026-10-30
 
+### Phase 7 — Enterprise multi-client isolation
+
+- **enterprise.py**: tenant resolution (client role cannot override header), client registry, ROE client match, engagement lifecycle, retention dry-run/apply, secure archive, environment profile.
+- API: `/api/enterprise/tenants`, select-tenant, engagements, retention, archive-client, environment, validate-roe.
+- Isolation rule: one client never sees another client's data.
+- Tests: `tests/test_phase7_enterprise.py` (7 passed).
+
 ### Phase 6 — Dashboard surfaces
 
-- **dashboard_surfaces.py**: executive overview, jobs, assets, heatmap, remediation board, history, retest candidates, compliance, activity log, honest system health, evidence archive.
-- New pages: `/jobs` `/assets` `/heatmap` `/remediation` `/history` `/retest` `/compliance` `/activity` `/health-ui` + `/api/surfaces/*`.
-- Sidebar nav expanded; module health never treats idle as operational.
-- Tests: `tests/test_phase6_surfaces.py` (2 passed).
+- dashboard_surfaces + jobs/assets/heatmap/remediation/history/retest/compliance/activity/health pages.
 
 ### Phase 5 — Database and worker reliability
 
-- job_control, phase5_db, claim/heartbeat/stale recovery, transactional finalize.
+- job_control, heartbeats, stale recovery, transactional finalize.
 
 ### Phase 4 — Reporting and evidence integrity
 
@@ -28,7 +32,3 @@
 ### Phase 1 — Critical security and authorization (P0)
 
 - Signed ROE, fail-closed windows, no invented live hosts.
-
-## 3.9.1-strengthen — 2026-10-30
-
-- Findings Director quality, engagement pack baseline, fail-safe cleanup.
