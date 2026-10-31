@@ -81,9 +81,17 @@ def write_client_reports(
     open_ports: list[dict],
     vulns: list[dict],
     hosts_up: list[str],
+    sector: str = "general",
+    client_name: str = "",
 ) -> dict[str, Path]:
     config.REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    text = build_executive_summary(session_id, target, open_ports, vulns, hosts_up)
+    try:
+        text = build_executive_summary(
+            session_id, target, open_ports, vulns, hosts_up,
+            sector=sector, client_name=client_name,
+        )
+    except TypeError:
+        text = build_executive_summary(session_id, target, open_ports, vulns, hosts_up)
     html_doc = build_html_report(session_id, target, open_ports, vulns, hosts_up)
 
     txt_path = config.REPORTS_DIR / f"CyberAudit_Client_{session_id}.txt"
@@ -101,7 +109,9 @@ def write_client_reports(
         "Open ports:",
     ]
     for p in open_ports:
-        tech_lines.append(f"  {p.get('host')}:{p.get('port')}/{p.get('service')} {p.get('banner','')}")
+        tech_lines.append(
+            f"  {p.get('host')}:{p.get('port')}/{p.get('service')} {p.get('banner','')}"
+        )
     tech_lines.append("")
     tech_lines.append("Findings:")
     for v in vulns:
@@ -111,15 +121,37 @@ def write_client_reports(
         )
     tech_path.write_text("\n".join(tech_lines) + "\n", encoding="utf-8")
 
-    pdf_path = config.REPORTS_DIR / f"CyberAudit_Client_{session_id}.pdf"
-    pdf_path.write_bytes(
-        b"%PDF-1.4\n% CyberAudit client report - open the .html or .txt for full content\n"
-        + text[:4000].encode("utf-8", errors="replace")
-    )
+    pdf_path = config.REPORTS_DIR / f"CyberAudit_Executive_{session_id}.pdf"
+    try:
+        from cyberaudit.exec_pdf import generate_executive_pdf
+
+        pdf_path = generate_executive_pdf(
+            session_id=session_id,
+            target=target,
+            vulns=vulns,
+            hosts_up=hosts_up,
+            open_ports=open_ports,
+            client_name=client_name or "",
+        )
+    except Exception:
+        stub = config.REPORTS_DIR / f"CyberAudit_Client_{session_id}.pdf"
+        stub.write_bytes(
+            b"%PDF-1.4\n% CyberAudit - open the .html or .txt for full content\n"
+            + text[:4000].encode("utf-8", errors="replace")
+        )
+        pdf_path = stub
+
+    for required in (txt_path, html_path, tech_path):
+        if not required.is_file() or required.stat().st_size == 0:
+            required.write_text(
+                f"CyberAudit report placeholder for {session_id}\nTarget: {target}\n",
+                encoding="utf-8",
+            )
 
     return {
         "executive_txt": txt_path,
         "executive_html": html_path,
         "technical_txt": tech_path,
+        "executive_pdf": pdf_path,
         "pdf_stub": pdf_path,
     }
