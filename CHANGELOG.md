@@ -2,22 +2,24 @@
 
 ## 3.10.0 — 2026-10-30
 
+### Phase 6 — Dashboard surfaces
+
+- **dashboard_surfaces.py**: executive overview, jobs, assets, heatmap, remediation board, history, retest candidates, compliance, activity log, honest system health, evidence archive.
+- New pages: `/jobs` `/assets` `/heatmap` `/remediation` `/history` `/retest` `/compliance` `/activity` `/health-ui` + `/api/surfaces/*`.
+- Sidebar nav expanded; module health never treats idle as operational.
+- Tests: `tests/test_phase6_surfaces.py` (2 passed).
+
 ### Phase 5 — Database and worker reliability
 
-- **job_control.py**: atomic claim, payload-hash dedup, heartbeats, stale recovery, bounded attempts, transactional finalize.
-- **phase5_db.py**: job control columns, worker_heartbeats, job_dedup, backup_database / restore_database.
-- **workers.py**: claim before run, heartbeat in loop, finalize before completed status, consistent failure cleanup.
-- **hardening.fail_safe_job**: mandatory deliverable validation before honouring completed.
-- **db.init_db**: runs migrate_phase5.
-- Tests: `tests/test_phase5_jobs.py` (5 passed).
+- job_control, phase5_db, claim/heartbeat/stale recovery, transactional finalize.
 
 ### Phase 4 — Reporting and evidence integrity
 
-- report_signing, engagement pack mandatory gate, finalization, fake PDF rejection.
+- report_signing, mandatory pack artefacts, PDF validation.
 
 ### Phase 3 — Intelligence and risk translation
 
-- finding_enrichment complete package; money estimates labelled.
+- finding_enrichment complete package.
 
 ### Phase 2 — Audit engine corrections
 
