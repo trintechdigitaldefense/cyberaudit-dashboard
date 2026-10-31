@@ -1,10 +1,10 @@
-# CyberAudit 3.10.8
+# CyberAudit 3.10.9
 
 **TrinTech Digital Defense**
 
 Point-in-time network auditing for Trinidad & Tobago and Caribbean engagements — map what's alive, understand the risk in plain English, tied to local law.
 
-**Version:** 3.10.8 · **Port:** 1881
+**Version:** 3.10.9 · **Port:** 1881
 
 CyberAudit is a **point-in-time** authorised audit tool — not continuous 24/7 monitoring.
 
@@ -19,7 +19,7 @@ export CYBERAUDIT_USER=admin
 export CYBERAUDIT_PASSWORD='<strong-unique-password>'
 ```
 
-Never commit secrets. Bind to localhost or a private interface.
+Never commit secrets.
 
 ## Quick start (lab)
 
@@ -38,4 +38,4 @@ python3 dashboard_app.py
 
 trintechdigitaldefense@gmail.com · 1-868-362-0679 · https://trintechdigitaldefense.github.io
 
-**Product:** CyberAudit · **Version:** 3.10.8
+**Product:** CyberAudit · **Version:** 3.10.9
