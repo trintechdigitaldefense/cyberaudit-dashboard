@@ -1,4 +1,4 @@
-"""Phase 5 job-control schema + backup — tenant-aware."""
+"""Phase 5 job-control schema + backup — tenant-aware (3.10.9)."""
 from __future__ import annotations
 
 import logging
@@ -68,46 +68,67 @@ def migrate_phase5() -> None:
 
 
 def backup_db(dest: Path | str) -> Path:
-    """Backup the active tenant database (WAL checkpoint first)."""
+    """Online SQLite backup API + integrity_check (tenant-aware source)."""
     from cyberaudit.db import _db_path
 
     src = _db_path()
     dest = Path(dest)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(src))
+    tmp = dest.with_suffix(dest.suffix + ".tmp")
+    if tmp.exists():
+        tmp.unlink()
+    src_conn = sqlite3.connect(str(src))
     try:
-        conn.execute("PRAGMA wal_checkpoint(FULL)")
+        dst_conn = sqlite3.connect(str(tmp))
+        try:
+            src_conn.backup(dst_conn)
+            row = dst_conn.execute("PRAGMA integrity_check").fetchone()
+            if not row or str(row[0]).lower() != "ok":
+                raise RuntimeError(f"backup integrity_check failed: {row}")
+        finally:
+            dst_conn.close()
     finally:
-        conn.close()
-    shutil.copy2(src, dest)
-    v = sqlite3.connect(str(dest))
-    try:
-        v.execute("SELECT 1")
-    finally:
-        v.close()
+        src_conn.close()
+    tmp.replace(dest)
     return dest
 
 
 def restore_db(src: Path | str) -> Path:
-    """Restore into the active tenant database path."""
+    """Validate backup then atomic replace of active tenant DB."""
     from cyberaudit.db import _db_path
 
-    dest = _db_path()
     src = Path(src)
     if not src.is_file():
         raise FileNotFoundError(src)
+    dest = _db_path()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dest)
-    conn = sqlite3.connect(str(dest))
+    check = sqlite3.connect(str(src))
     try:
-        conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
+        row = check.execute("PRAGMA integrity_check").fetchone()
+        if not row or str(row[0]).lower() != "ok":
+            raise RuntimeError(f"source backup failed integrity_check: {row}")
+        check.execute("SELECT 1 FROM sqlite_master LIMIT 1")
     finally:
-        conn.close()
+        check.close()
+    if dest.exists():
+        pre = dest.with_suffix(dest.suffix + ".prerestore")
+        shutil.copy2(dest, pre)
+    tmp = dest.with_suffix(dest.suffix + ".restore_tmp")
+    if tmp.exists():
+        tmp.unlink()
+    shutil.copy2(src, tmp)
+    verify = sqlite3.connect(str(tmp))
+    try:
+        row = verify.execute("PRAGMA integrity_check").fetchone()
+        if not row or str(row[0]).lower() != "ok":
+            raise RuntimeError(f"restored copy failed integrity_check: {row}")
+    finally:
+        verify.close()
+    tmp.replace(dest)
     return dest
 
 
 def backup_database(dest=None):
-    """Alias for backup_db — accepts a file path or a directory."""
     from datetime import datetime, timezone
     from cyberaudit.db import _db_path
 
@@ -124,5 +145,4 @@ def backup_database(dest=None):
 
 
 def restore_database(src, force: bool = False):
-    """Alias for restore_db. ``force`` accepted for API compatibility."""
     return restore_db(src)
