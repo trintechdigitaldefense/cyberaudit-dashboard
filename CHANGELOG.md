@@ -2,9 +2,15 @@
 
 ## 3.10.0 — 2026-10-30
 
+### Phase 9 — Documentation & Definition of Done
+
+- **docs/RELEASE_NOTES_3.10.md** — honest release notes (shipped only).
+- **docs/DOD_CHECKLIST_3.10.md** — pre-release / pre-client checklist.
+- Version bumped to **3.10.0** in config and README.
+
 ### Phase 8 — Full regression suite
 
-- **tests/test_phase8_regression.py**: 18 acceptance tests (ROE sign/scope, mandatory deliverables, PDF magic, engagement pack, classifier, enrichment, job claim, finalize gate, tenant isolation, health honesty, CMA disclaimer, backup, retention dry-run).
+- **tests/test_phase8_regression.py**: 18 acceptance tests.
 - Combined Phases 1–8 core suite: **59 passed**.
 
 ### Phase 7 — Enterprise multi-client isolation
