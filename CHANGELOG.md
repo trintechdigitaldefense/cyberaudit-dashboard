@@ -1,17 +1,12 @@
 # CyberAudit Changelog
 
-## 3.10.7 — 2026-10-30
+## 3.10.8 — 2026-10-30
 
-### Reliability and security repair
+### Final reliability and security repair
 
-- **Atomic claim_job**: `BEGIN IMMEDIATE` + conditional UPDATE (rowcount ownership).
-- **Ownership-aware heartbeat**: only the claiming worker can heartbeat.
-- **Atomic duplicate registration** under IMMEDIATE transaction.
-- **ensure_job_schema fail-closed** on migration failure.
-- **verify_manifest** requires `sig_alg=HMAC-SHA256` (no empty alg).
-- **pdf_validate**: structural checks (pypdf when available; rejects header-only).
-- **VERSION** 3.10.7.
-
-## 3.10.6 — 2026-10-30
-
-Tenant migrations, REPORT_SECRET-only signing, workers job-control integration.
+- Ownership-aware `mark_job`.
+- Tightened `claim_job` (no empty-owner reclaim of fresh running jobs).
+- Transactional conditional `recover_stale_jobs`.
+- Zero-host discovery as partial/no_coverage.
+- PDF production requires pypdf.
+- VERSION 3.10.8.

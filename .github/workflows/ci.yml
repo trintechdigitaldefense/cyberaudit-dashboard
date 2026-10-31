@@ -21,7 +21,7 @@ jobs:
           pip install pytest pip-audit pypdf
       - name: Syntax compile
         run: python -m compileall -q cyberaudit
-      - name: Core pytest suite
+      - name: Full pytest discovery
         env:
           DEMO_MODE: "1"
           CYBERAUDIT_SECRET: "ci-test-secret-32-characters-ok!!"
@@ -32,22 +32,6 @@ jobs:
           CYBERAUDIT_DB_PATH: /tmp/ca_ci_data/cyber_audit.db
         run: |
           mkdir -p /tmp/ca_ci_data /tmp/ca_ci_reports
-          python -m pytest \
-            tests/test_phase1_roe.py \
-            tests/test_phase2_classifier.py \
-            tests/test_phase3_intel.py \
-            tests/test_phase4_reports.py \
-            tests/test_phase5_jobs.py \
-            tests/test_phase6_surfaces.py \
-            tests/test_phase7_enterprise.py \
-            tests/test_phase8_regression.py \
-            tests/test_phase9_docs.py \
-            tests/test_phase3101_integration.py \
-            tests/test_phase3102_runtime.py \
-            tests/test_phase3103_core.py \
-            tests/test_phase3105_gate.py \
-            tests/test_phase3106_gate.py \
-            tests/test_phase3107_gate.py \
-            -q --tb=line
+          python -m pytest tests/ -q --tb=line
       - name: Dependency audit
         run: pip-audit -r requirements.txt
