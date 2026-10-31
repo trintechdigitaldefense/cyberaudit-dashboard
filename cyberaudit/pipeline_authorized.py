@@ -1,71 +1,31 @@
-"""Authorized audit entrypoint — CyberAudit 3.10.2.
+"""Authorized audit entrypoint — CyberAudit 3.10.3.
 
-ROE before any network activity. Never invents live hosts.
+ROE before any network activity. Static helpers from pipeline_helpers (no exec).
 """
-
 from __future__ import annotations
 
 import datetime
 import logging
 import secrets
 from pathlib import Path
-from typing import Any
+
+from cyberaudit import pipeline_helpers as H
 
 logger = logging.getLogger("CyberAuditDashboard")
-_HELPERS: dict[str, Any] | None = None
-
-
-def _load_helpers() -> dict[str, Any]:
-    import re
-    from pathlib import Path
-
-    root = Path(__file__).parent
-    ns: dict[str, Any] = {"__name__": "cyberaudit.pipeline_helpers"}
-    exec(
-        "from __future__ import annotations\n"
-        "import datetime, ipaddress, json, logging, secrets, socket, subprocess\n"
-        "from concurrent.futures import ThreadPoolExecutor, as_completed\n"
-        "from pathlib import Path\n"
-        "from typing import Any, Optional\n"
-        "from cyberaudit import config\n"
-        "from cyberaudit.db import insert_finding, insert_live_event, upsert_audit_session, upsert_module_status\n"
-        "logger = logging.getLogger('CyberAuditDashboard')\n",
-        ns,
-        ns,
-    )
-    for name, strip in (("pipeline_body_0.txt", False), ("pipeline_body_1.txt", True)):
-        path = root / name
-        if not path.exists():
-            continue
-        text = path.read_text(encoding="utf-8")
-        if strip:
-            m = re.search(r"^def run_audit_job\(", text, flags=re.M)
-            if m:
-                text = text[: m.start()]
-        exec(compile(text, str(path), "exec"), ns, ns)
-    return ns
-
-
-def _H() -> dict[str, Any]:
-    global _HELPERS
-    if _HELPERS is None:
-        _HELPERS = _load_helpers()
-    return _HELPERS
 
 
 def run_audit_job(job: dict) -> dict:
-    H = _H()
-    _now = H["_now"]
-    _ev = H["_ev"]
-    _mod = H["_mod"]
-    _nmap_available = H["_nmap_available"]
-    _parse_targets = H["_parse_targets"]
-    discover_live_hosts = H["discover_live_hosts"]
-    recon_scan = H["recon_scan"]
-    vulnerability_heuristics = H["vulnerability_heuristics"]
-    map_tt_compliance = H["map_tt_compliance"]
-    write_network_map = H["write_network_map"]
-    upsert_audit_session = H["upsert_audit_session"]
+    _now = H._now
+    _ev = H._ev
+    _mod = H._mod
+    _nmap_available = H._nmap_available
+    _parse_targets = H._parse_targets
+    discover_live_hosts = H.discover_live_hosts
+    recon_scan = H.recon_scan
+    vulnerability_heuristics = H.vulnerability_heuristics
+    map_tt_compliance = H.map_tt_compliance
+    write_network_map = H.write_network_map
+    upsert_audit_session = H.upsert_audit_session
 
     from cyberaudit.phase1_integrate import apply_phase1, persist_enriched_findings, patch_session_posture
     from cyberaudit.report_generator import write_client_reports
@@ -89,24 +49,17 @@ def run_audit_job(job: dict) -> dict:
     try:
         roe = assert_authorized(job)
         try:
-            audit_event(
-                "roe_authorized",
-                detail={
-                    "job_id": job_id,
-                    "target": target,
-                    "client_name": roe.get("client_name"),
-                    "authorized_by": roe.get("authorized_by"),
-                    "demo": bool(roe.get("demo")),
-                },
-            )
+            audit_event("roe_authorized", detail={
+                "job_id": job_id, "target": target,
+                "client_name": roe.get("client_name"),
+                "authorized_by": roe.get("authorized_by"),
+                "demo": bool(roe.get("demo")),
+            })
         except Exception:
             pass
     except Exception as auth_exc:
         try:
-            audit_event(
-                "roe_denied",
-                detail={"job_id": job_id, "target": target, "error": str(auth_exc)[:300]},
-            )
+            audit_event("roe_denied", detail={"job_id": job_id, "target": target, "error": str(auth_exc)[:300]})
         except Exception:
             pass
         raise
@@ -168,8 +121,8 @@ def run_audit_job(job: dict) -> dict:
         else:
             _mod("openvas_module", "skipped", "No open ports — web checks not run")
     except Exception as exc:
-        _mod("openvas_module", "failed", f"Web checks error: {exc}"[:120])
-        logger.warning("webapp module skipped: %s", exp if False else exc)
+        _mod("openvas_module", "failed", str(exc)[:120])
+        logger.warning("webapp skipped: %s", exp if False else exc)
 
     vulns = map_tt_compliance(vulns)
     try:
