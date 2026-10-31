@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import random
+import threading
 import time
 from pathlib import Path
 
@@ -67,20 +68,16 @@ def process_inbox_file(path: Path) -> bool:
 
 
 def _mark_job_status(job_id: str, status: str) -> None:
-    """Last-resort status write when job_control is unavailable."""
     try:
         with get_db() as conn:
-            conn.execute(
-                "UPDATE audit_jobs SET status=? WHERE job_id=?",
-                (status, job_id),
-            )
+            conn.execute("UPDATE audit_jobs SET status=? WHERE job_id=?", (status, job_id))
             conn.commit()
     except Exception as e:
         logger.error("job status update failed: %s", e)
 
 
 def process_job_file(path: Path) -> bool:
-    """Execute a queued audit job with claim, heartbeat, and transactional finalize."""
+    """Execute a queued audit job with claim, periodic heartbeat, and finalize."""
     try:
         job = json.loads(path.read_text(encoding="utf-8"))
         try:
@@ -138,7 +135,7 @@ def process_job_file(path: Path) -> bool:
             )
             return True
         if not claim_job(job_id):
-            logger.info("job %s not claimed (held by another worker or exhausted)", job_id)
+            logger.info("job %s not claimed", job_id)
             return False
         heartbeat(job_id, detail="pipeline start")
     except Exception as exc:
@@ -162,14 +159,30 @@ def process_job_file(path: Path) -> bool:
         from cyberaudit.pipeline_engine import run_audit_job
         from cyberaudit.hardening import fail_safe_job, audit_event
 
-        result = fail_safe_job(run_audit_job, job)
+        stop_hb = threading.Event()
+
+        def _hb_loop():
+            while not stop_hb.wait(15.0):
+                try:
+                    if not heartbeat(job_id, detail="pipeline running"):
+                        logger.warning("heartbeat ownership lost for %s", job_id)
+                        break
+                except Exception as hexc:
+                    logger.debug("heartbeat: %s", hexc)
+
+        hb_thread = threading.Thread(target=_hb_loop, name=f"hb-{job_id}", daemon=True)
+        hb_thread.start()
+        try:
+            result = fail_safe_job(run_audit_job, job)
+        finally:
+            stop_hb.set()
+            hb_thread.join(timeout=2.0)
         try:
             heartbeat(job_id, detail="pipeline finished")
         except Exception:
             pass
 
         try:
-            from cyberaudit.job_control import transactional_finalize
             result = transactional_finalize(
                 result if isinstance(result, dict) else {"status": "failed"},
                 job_id=job_id,
@@ -221,7 +234,6 @@ def process_job_file(path: Path) -> bool:
 
 
 def job_runner() -> None:
-    """Always-on worker: pick up jobs from data/jobs/*.json and run real audits."""
     config.JOBS_DIR.mkdir(parents=True, exist_ok=True)
     done = config.JOBS_DIR / "done"
     failed = config.JOBS_DIR / "failed"
@@ -282,32 +294,21 @@ def retention_worker() -> None:
         time.sleep(max(60, config.RETENTION_INTERVAL_SECONDS))
 
 
-_ALWAYS_ON = (
-    "continuous_ids_module",
-    "data_exfiltration_module",
-    "regional_threat_intel",
-)
+_ALWAYS_ON = ("continuous_ids_module", "data_exfiltration_module", "regional_threat_intel")
 _BATCH = (
-    "nmap_module",
-    "openvas_module",
-    "tt_compliance_mapper",
-    "patch_verification_module",
-    "pdf_report_module",
-    "incident_response_module",
-    "database_module",
-    "diagnostics_module",
+    "nmap_module", "openvas_module", "tt_compliance_mapper", "patch_verification_module",
+    "pdf_report_module", "incident_response_module", "database_module", "diagnostics_module",
 )
 _ALL_MODULES = _ALWAYS_ON + _BATCH
 
 
 def live_feed_simulator() -> None:
-    """Fake traffic only when DEMO_MODE=1. Prefer real job_runner."""
     global _simulator_running
     if not config.DEMO_MODE:
-        logger.info("Simulator skipped (DEMO_MODE=0 — real pipeline only)")
+        logger.info("Simulator skipped (DEMO_MODE=0)")
         return
     _simulator_running = True
-    logger.warning("DEMO_MODE=1 — synthetic live feed active (not production)")
+    logger.warning("DEMO_MODE=1 — synthetic live feed active")
     while _simulator_running:
         time.sleep(random.uniform(5.0, 12.0))
         if not config.DEMO_MODE:
