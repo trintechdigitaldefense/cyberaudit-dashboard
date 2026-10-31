@@ -60,9 +60,9 @@ COOKIE_SECURE = os.environ.get("CYBERAUDIT_COOKIE_SECURE", "").strip().lower() i
 
 _version_file = Path(__file__).resolve().parent / "VERSION"
 try:
-    VERSION = _version_file.read_text(encoding="utf-8").strip() or "3.10.5"
+    VERSION = _version_file.read_text(encoding="utf-8").strip() or "3.10.6"
 except OSError:
-    VERSION = "3.10.5"
+    VERSION = "3.10.6"
 
 COMPANY = {
     "name": "TrinTech Digital Defense",
