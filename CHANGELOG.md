@@ -1,15 +1,16 @@
 # CyberAudit Changelog
 
+## 3.10.4 — 2026-10-30
+
+### Sync release
+
+- Version bump to **3.10.4** (authoritative).
+- Tenant-aware `get_db`/`init_db`, static `pipeline_helpers`, authorized entry, and worker claim path.
+- CI includes 3.10.3 core tests; pip-audit remains blocking.
+
 ## 3.10.3 — 2026-10-30
 
-### Core integration completion
-
-- **db.get_db / init_db**: use `resolve_db_path()` — tenant isolation without mutating config.DB_PATH.
-- **pipeline_helpers.py**: static helpers (no runtime exec of body text).
-- **pipeline_authorized**: imports helpers module; ROE-first path retained.
-- **report_signing**: unsigned packs never marked verified when secret configured.
-- **tests/test_phase3103_core.py**: real tenant DB isolation without config mutation.
-- Version unified to **3.10.3**.
+Core integration: tenant isolation without config.DB_PATH mutation, static helpers, unsigned pack reject.
 
 ## 3.10.2 — 2026-10-30
 
