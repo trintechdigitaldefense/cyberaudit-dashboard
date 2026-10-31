@@ -55,19 +55,17 @@ else:
     ]
 
 COOKIE_SECURE = os.environ.get("CYBERAUDIT_COOKIE_SECURE", "").strip().lower() in (
-    "1",
-    "true",
-    "yes",
+    "1", "true", "yes",
 )
 
-VERSION = "3.10.0"
+VERSION = "3.10.3"
 
 COMPANY = {
     "name": "TrinTech Digital Defense",
     "short_name": "TrinTech DD",
     "tagline": "Caribbean Cyber Resilience • Trinidad & Tobago",
     "product": "CyberAudit",
-    "version": "3.10.0",
+    "version": "3.10.3",
     "address": "Remote operations · Trinidad and Tobago",
     "phone": "1-868-362-0679",
     "email": "trintechdigitaldefense@gmail.com",
