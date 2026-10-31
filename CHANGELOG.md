@@ -2,16 +2,18 @@
 
 ## 3.10.0 — 2026-10-30
 
+### Phase 8 — Full regression suite
+
+- **tests/test_phase8_regression.py**: 18 acceptance tests (ROE sign/scope, mandatory deliverables, PDF magic, engagement pack, classifier, enrichment, job claim, finalize gate, tenant isolation, health honesty, CMA disclaimer, backup, retention dry-run).
+- Combined Phases 1–8 core suite: **59 passed**.
+
 ### Phase 7 — Enterprise multi-client isolation
 
-- **enterprise.py**: tenant resolution (client role cannot override header), client registry, ROE client match, engagement lifecycle, retention dry-run/apply, secure archive, environment profile.
-- API: `/api/enterprise/tenants`, select-tenant, engagements, retention, archive-client, environment, validate-roe.
-- Isolation rule: one client never sees another client's data.
-- Tests: `tests/test_phase7_enterprise.py` (7 passed).
+- enterprise.py: tenant lock, ROE client match, engagement lifecycle, retention, archive.
 
 ### Phase 6 — Dashboard surfaces
 
-- dashboard_surfaces + jobs/assets/heatmap/remediation/history/retest/compliance/activity/health pages.
+- jobs, assets, heatmap, remediation, history, retest, compliance, activity, health.
 
 ### Phase 5 — Database and worker reliability
 
