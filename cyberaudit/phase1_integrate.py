@@ -8,12 +8,14 @@ Call from pipeline_engine after vulnerability_heuristics / map_tt_compliance:
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 from pathlib import Path
 from typing import Any
 
+from cyberaudit import config
 from cyberaudit.cvss import enrich_findings
-from cyberaudit.db import get_db, insert_finding
+from cyberaudit.db import get_db, insert_finding, upsert_audit_session
 from cyberaudit.posture import compute_posture_score
 from cyberaudit.retest import (
     compute_delta,
@@ -52,14 +54,17 @@ def apply_phase1(
     logo_path: str | Path | None = None,
     run_retest_delta: bool = True,
 ) -> tuple[list[dict], dict[str, Any]]:
+    """Enrich findings with CVSS, compute posture, PDF, optional delta."""
     from cyberaudit.phase1_db import migrate_phase1
 
     migrate_phase1()
+
     enriched = enrich_findings(vulns)
     posture = compute_posture_score(
         findings=enriched, hosts_up=len(hosts_up), open_ports=len(open_ports)
     )
     prev = _previous_posture(target)
+
     artifacts: dict[str, Any] = {
         "posture": posture,
         "previous_posture": prev,
@@ -67,6 +72,7 @@ def apply_phase1(
         "delta_report": None,
         "baseline_session_id": None,
     }
+
     try:
         from cyberaudit.exec_pdf import generate_executive_pdf
 
@@ -111,7 +117,13 @@ def apply_phase1(
                 """INSERT INTO posture_history
                    (session_id, target, posture_score, posture_band, recorded_at)
                    VALUES (?,?,?,?,?)""",
-                (session_id, target, posture["posture_score"], posture["band"], now),
+                (
+                    session_id,
+                    target,
+                    posture["posture_score"],
+                    posture["band"],
+                    now,
+                ),
             )
             conn.commit()
     except Exception as exc:
@@ -121,11 +133,40 @@ def apply_phase1(
 
 
 def persist_enriched_findings(session_id: str, enriched: list[dict]) -> None:
+    """Insert findings with CVSS + fingerprint + open status.
+
+    Strengthening: attach plain-language pack into evidence JSON when missing,
+    so the findings table and exports stay readable even if UI enrichment fails.
+    """
     from cyberaudit.phase1_db import migrate_phase1
 
     migrate_phase1()
+
+    try:
+        from cyberaudit.risk_translator import enrich_with_plain_language
+
+        enriched = enrich_with_plain_language(enriched)
+    except Exception as exc:
+        logger.debug("plain language pre-enrich skipped: %s", exc)
+
     for v in enriched:
         fp = fingerprint(v)
+        evidence = v.get("evidence") or ""
+        if isinstance(evidence, (dict, list)):
+            evidence = json.dumps(evidence)
+        plain = v.get("plain")
+        if plain and isinstance(plain, dict):
+            try:
+                blob = {
+                    "raw": evidence,
+                    "plain": plain,
+                    "cvss_base_score": v.get("cvss_base_score"),
+                    "service": v.get("service") or "",
+                }
+                evidence = json.dumps(blob, ensure_ascii=False)
+            except Exception:
+                pass
+
         data = {
             "session_id": session_id,
             "host": v.get("host"),
@@ -134,7 +175,7 @@ def persist_enriched_findings(session_id: str, enriched: list[dict]) -> None:
             "title": v.get("title"),
             "cve": v.get("cve") or "",
             "cma_section": v.get("cma_section") or "",
-            "evidence": v.get("evidence") or "",
+            "evidence": evidence,
             "status": "open",
         }
         fid = insert_finding(data)
@@ -184,6 +225,11 @@ def patch_session_posture(
                     session_id,
                 ),
             )
+            if report_path:
+                conn.execute(
+                    "UPDATE audit_sessions SET report_path=? WHERE session_id=?",
+                    (report_path, session_id),
+                )
             conn.commit()
     except Exception as exc:
         logger.warning("session posture update: %s", exc)
