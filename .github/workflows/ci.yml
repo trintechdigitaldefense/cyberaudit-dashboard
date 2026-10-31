@@ -46,6 +46,7 @@ jobs:
             tests/test_phase3102_runtime.py \
             tests/test_phase3103_core.py \
             tests/test_phase3105_gate.py \
+            tests/test_phase3106_gate.py \
             -q --tb=line
       - name: Dependency audit
         run: pip-audit -r requirements.txt

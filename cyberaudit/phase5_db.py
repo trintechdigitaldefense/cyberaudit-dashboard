@@ -1,101 +1,104 @@
-"""Phase 5 schema — job control columns, worker heartbeats, backups."""
-
+"""Phase 5 job-control schema + backup — tenant-aware."""
 from __future__ import annotations
 
 import logging
 import shutil
 import sqlite3
-from datetime import datetime, timezone
 from pathlib import Path
-
-from cyberaudit import config
 
 logger = logging.getLogger("CyberAuditDashboard")
 
 
-def migrate_phase5(conn: sqlite3.Connection | None = None) -> None:
-    own = conn is None
-    if own:
-        conn = sqlite3.connect(str(config.DB_PATH))
-    c = conn.cursor()
+def migrate_phase5() -> None:
+    from cyberaudit.db import _db_path
 
-    for stmt in (
-        "ALTER TABLE audit_jobs ADD COLUMN attempt INTEGER DEFAULT 0",
-        "ALTER TABLE audit_jobs ADD COLUMN max_attempts INTEGER DEFAULT 3",
-        "ALTER TABLE audit_jobs ADD COLUMN claimed_by TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN claimed_at TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN heartbeat_at TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN last_error TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN session_id TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN finished_at TEXT DEFAULT ''",
-        "ALTER TABLE audit_jobs ADD COLUMN payload_hash TEXT DEFAULT ''",
-    ):
-        try:
-            c.execute(stmt)
-        except sqlite3.OperationalError:
-            pass
-
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS worker_heartbeats (
-            worker_id TEXT PRIMARY KEY,
-            last_seen TEXT NOT NULL,
-            status TEXT DEFAULT 'alive',
-            detail TEXT DEFAULT ''
-        )
-        """
-    )
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS job_dedup (
-            payload_hash TEXT PRIMARY KEY,
-            job_id TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )
-        """
-    )
-    conn.commit()
-    if own:
-        conn.close()
-    logger.info("phase5 schema migrated")
-
-
-def backup_database(dest_dir: Path | str | None = None) -> Path:
-    dest_root = Path(dest_dir) if dest_dir else (config.DATA_DIR / "backups")
-    dest_root.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    dest = dest_root / f"cyber_audit_{ts}.db"
-    src = Path(config.DB_PATH)
-    if not src.is_file():
-        raise FileNotFoundError(f"database not found: {src}")
+    path = _db_path()
+    conn = sqlite3.connect(str(path))
     try:
-        conn = sqlite3.connect(str(src))
-        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        c = conn.cursor()
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_id TEXT UNIQUE,
+                target TEXT,
+                requested_by TEXT,
+                status TEXT,
+                created_at TEXT,
+                notes TEXT,
+                claimed_by TEXT DEFAULT '',
+                claimed_at TEXT DEFAULT '',
+                heartbeat_at TEXT DEFAULT '',
+                attempt INTEGER DEFAULT 0,
+                max_attempts INTEGER DEFAULT 3,
+                payload_hash TEXT DEFAULT '',
+                session_id TEXT DEFAULT '',
+                last_error TEXT DEFAULT '',
+                finished_at TEXT DEFAULT ''
+            )
+            """
+        )
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS job_dedup (
+                payload_hash TEXT PRIMARY KEY,
+                job_id TEXT,
+                created_at TEXT
+            )
+            """
+        )
+        for stmt in (
+            "ALTER TABLE audit_jobs ADD COLUMN claimed_by TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN claimed_at TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN heartbeat_at TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN attempt INTEGER DEFAULT 0",
+            "ALTER TABLE audit_jobs ADD COLUMN max_attempts INTEGER DEFAULT 3",
+            "ALTER TABLE audit_jobs ADD COLUMN payload_hash TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN session_id TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN last_error TEXT DEFAULT ''",
+            "ALTER TABLE audit_jobs ADD COLUMN finished_at TEXT DEFAULT ''",
+        ):
+            try:
+                c.execute(stmt)
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+    finally:
         conn.close()
-    except Exception as exc:
-        logger.warning("wal checkpoint before backup: %s", exc)
+
+
+def backup_db(dest: Path | str) -> Path:
+    from cyberaudit.db import _db_path
+
+    src = _db_path()
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(src))
+    try:
+        conn.execute("PRAGMA wal_checkpoint(FULL)")
+    finally:
+        conn.close()
     shutil.copy2(src, dest)
     v = sqlite3.connect(str(dest))
     try:
-        v.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()
+        v.execute("SELECT 1")
     finally:
         v.close()
-    logger.info("database backup written: %s", dest)
     return dest
 
 
-def restore_database(backup_path: Path | str, *, force: bool = False) -> Path:
-    src = Path(backup_path)
+def restore_db(src: Path | str) -> Path:
+    from cyberaudit.db import _db_path
+
+    dest = _db_path()
+    src = Path(src)
     if not src.is_file():
-        raise FileNotFoundError(str(src))
-    dest = Path(config.DB_PATH)
-    if dest.exists() and not force:
-        raise RuntimeError("database exists — pass force=True to overwrite")
+        raise FileNotFoundError(src)
     dest.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dest)
     conn = sqlite3.connect(str(dest))
     try:
-        conn.execute("SELECT COUNT(*) FROM sqlite_master").fetchone()
+        conn.execute("SELECT 1 FROM sqlite_master LIMIT 1")
     finally:
         conn.close()
     return dest

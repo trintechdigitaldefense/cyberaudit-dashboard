@@ -1,20 +1,15 @@
 # CyberAudit Changelog
 
+## 3.10.6 — 2026-10-30
+
+### Production integration repair
+
+- Migrations (`phase1_db`, `phase5_db`) and backups use active tenant `_db_path()`.
+- Report signing uses **only** `CYBERAUDIT_REPORT_SECRET` (no ROE/app fallback).
+- Strict pack verification: checksum coverage, path traversal rejection, signature required.
+- Concurrent claim race tests (threaded).
+- Version **3.10.6** from `cyberaudit/VERSION`.
+
 ## 3.10.5 — 2026-10-30
 
-### Integration repair and release gate
-
-- **db.get_db / init_db**: always use `resolve_db_path()` + mkdir parent.
-- **claim_job**: `BEGIN IMMEDIATE` + conditional UPDATE (one winner).
-- **Version**: authoritative `cyberaudit/VERSION` (3.10.5) loaded by config.
-- **Tests**: `test_phase3105_gate.py` — tenant isolation, claim, ROE, signing, no version drift.
-- **pipeline_authorized**: remove dead `exp if False else` expressions.
-- **report_signing**: dedicated `CYBERAUDIT_REPORT_SECRET` (demo-only fallback).
-
-## 3.10.4 — 2026-10-30
-
-Sync release with static helpers and authorized entry.
-
-## 3.10.3 — 2026-10-30
-
-Core integration attempt.
+Tenant-aware get_db, atomic claim, VERSION source.
