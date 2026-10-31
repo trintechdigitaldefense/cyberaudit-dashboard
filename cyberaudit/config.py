@@ -41,9 +41,9 @@ ALLOWED_ORIGINS = [o.strip() for o in _allowed.split(",") if o.strip()] if _allo
 COOKIE_SECURE = os.environ.get("CYBERAUDIT_COOKIE_SECURE", "").strip().lower() in ("1", "true", "yes")
 _version_file = Path(__file__).resolve().parent / "VERSION"
 try:
-    VERSION = _version_file.read_text(encoding="utf-8").strip() or "3.10.8"
+    VERSION = _version_file.read_text(encoding="utf-8").strip() or "3.10.9"
 except OSError:
-    VERSION = "3.10.8"
+    VERSION = "3.10.9"
 COMPANY = {
     "name": "TrinTech Digital Defense",
     "short_name": "TrinTech DD",
