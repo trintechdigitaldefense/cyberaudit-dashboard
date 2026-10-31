@@ -1,28 +1,11 @@
-"""CyberAudit pipeline engine — loads implementation parts.
+"""CyberAudit pipeline engine — 3.10.2 single entry.
 
-3.10.1: body_1 provides recon/heuristics helpers; its legacy run_audit_job
-(without ROE) is stripped so body_2's authorized pipeline is the only entry.
+Authorized run_audit_job lives in pipeline_authorized.py so imports of
+`from cyberaudit.pipeline_engine import run_audit_job` always use the ROE-gated
+path, regardless of any stale pipeline_body_2.txt on disk or GitHub.
 """
-from pathlib import Path
-import re
+from __future__ import annotations
 
-_dir = Path(__file__).parent
+from cyberaudit.pipeline_authorized import run_audit_job  # noqa: F401
 
-def _load_part(path: Path, *, strip_run_audit: bool = False) -> str:
-    if not path.exists():
-        return ""
-    text = path.read_text(encoding="utf-8")
-    if strip_run_audit:
-        m = re.search(r"^def run_audit_job\(", text, flags=re.M)
-        if m:
-            text = text[: m.start()]
-    return text
-
-_code = "".join(
-    [
-        _load_part(_dir / "pipeline_body_0.txt"),
-        _load_part(_dir / "pipeline_body_1.txt", strip_run_audit=True),
-        _load_part(_dir / "pipeline_body_2.txt"),
-    ]
-)
-exec(compile(_code, str(_dir / "pipeline_engine_impl.py"), "exec"), globals())
+__all__ = ["run_audit_job"]

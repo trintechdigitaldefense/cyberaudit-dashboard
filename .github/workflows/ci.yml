@@ -42,9 +42,10 @@ jobs:
             tests/test_phase8_regression.py \
             tests/test_phase9_docs.py \
             tests/test_phase3101_integration.py \
+            tests/test_phase3102_runtime.py \
             -q --tb=line
       - name: Dependency audit
-        run: pip-audit -r requirements.txt || echo "pip-audit reported issues — review before release"
+        run: pip-audit -r requirements.txt
       - name: Secrets gate smoke
         run: |
           python -c "
