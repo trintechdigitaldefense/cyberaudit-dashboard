@@ -1,4 +1,4 @@
-"""CyberAudit pipeline engine — 3.10.3.
+"""CyberAudit pipeline engine — 3.10.4.
 
 Single entry: pipeline_authorized.run_audit_job (ROE-first, static helpers).
 """
