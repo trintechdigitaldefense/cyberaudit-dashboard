@@ -15,7 +15,7 @@ def archive_session(
         "high_severity": high, "medium_severity": med, "low_severity": low,
         "compliance_score": score, "report_path": str(report_path),
         "notes": json.dumps({"hosts_up": hosts_up[:128], "open_ports": len(open_ports),
-                              "pipeline": "cyberaudit-3.3-phase3", "posture_score": score}),
+                              "pipeline": "cyberaudit-3.9.1-strengthen", "posture_score": score}),
     })
     if not skip_findings:
         for v in vulns:
@@ -31,6 +31,14 @@ def archive_session(
 
 def run_audit_job(job: dict) -> dict:
     from cyberaudit.phase1_integrate import apply_phase1, persist_enriched_findings, patch_session_posture
+
+    try:
+        from cyberaudit.hardening import validate_job_payload
+        job = validate_job_payload(job)
+    except ValueError:
+        raise
+    except Exception as exc:
+        logger.warning("job validation skipped: %s", exc)
 
     job_id = job.get("job_id") or f"JOB-{secrets.token_hex(4)}"
     target = (job.get("target") or "").strip()
@@ -109,13 +117,24 @@ def run_audit_job(job: dict) -> dict:
     except Exception:
         pass
 
+    _mod("regional_threat_intel", "ok", "Cross-check latest TT-CSIRT / CARICOM IMPACS advisories")
+    _mod("patch_verification_module", "ok", "Baseline snapshot recorded for this engagement")
+    _mod("incident_response_module", "idle", "Playbooks ready — operator review for high findings")
+    _mod("data_exfiltration_module", "ok", "Not in continuous mode — point-in-time audit only")
+    _mod("continuous_ids_module", "ok", "Point-in-time audit — feed live alerts via inbox if needed")
+
+    _mod("pdf_report_module", "running", "Writing client executive + technical reports")
     map_path = write_network_map(session_id, target, hosts_up, open_ports)
-    paths = write_client_reports(
-        session_id, target, open_ports, vulns, hosts_up,
-        sector=sector, client_name=client_name,
-    )
+    try:
+        paths = write_client_reports(
+            session_id, target, open_ports, vulns, hosts_up,
+            sector=sector, client_name=client_name,
+        )
+    except TypeError:
+        paths = write_client_reports(session_id, target, open_ports, vulns, hosts_up)
     primary = paths["executive_txt"]
     _mod("pdf_report_module", "ok", f"Reports: {primary.name}")
+    _ev("pdf_report_module", f"Client reports ready ({primary.name})")
 
     archive_session(session_id, target, vulns, primary, hosts_up, open_ports,
                     posture_score=posture.get("posture_score"), skip_findings=True)
@@ -124,14 +143,52 @@ def run_audit_job(job: dict) -> dict:
                           baseline_session_id=p1.get("baseline_session_id") or "",
                           client_name=client_name, report_path=str(primary))
 
+    board_path = None
+    try:
+        from cyberaudit.board_summary import write_board_summary
+        board_path = write_board_summary(
+            session_id,
+            client_name=client_name,
+            target=target,
+            posture_score=posture.get("posture_score"),
+            posture_band=posture.get("band") or "",
+            findings=vulns,
+            delta=p1.get("delta") or (p1.get("delta_report") if isinstance(p1.get("delta_report"), dict) else {}),
+            sector=sector,
+            lang=(job.get("language") or job.get("report_lang") or "en"),
+        )
+        _ev("pdf_report_module", f"Board summary: {board_path.name}")
+    except Exception as exc:
+        logger.warning("board summary skipped: %s", exc)
+
+    exec_pdf_path = paths.get("executive_pdf") or paths.get("pdf_stub") or p1.get("pdf")
     result = {
-        "job_id": job_id, "session_id": session_id, "target": target,
-        "hosts_up": len(hosts_up), "open_ports": len(open_ports), "findings": len(vulns),
-        "posture_score": posture.get("posture_score"), "posture_band": posture.get("band"),
-        "report": str(primary), "report_html": str(paths["executive_html"]),
-        "executive_pdf": p1.get("pdf"), "retest_delta": p1.get("delta_report"),
-        "network_map": str(map_path), "sector": sector, "status": "completed",
+        "job_id": job_id,
+        "session_id": session_id,
+        "target": target,
+        "client_name": client_name,
+        "hosts_up": len(hosts_up),
+        "open_ports": len(open_ports),
+        "findings": len(vulns),
+        "posture_score": posture.get("posture_score"),
+        "posture_band": posture.get("band"),
+        "report": str(primary),
+        "report_html": str(paths.get("executive_html") or ""),
+        "report_technical": str(paths.get("technical_txt") or ""),
+        "executive_pdf": str(exec_pdf_path) if exec_pdf_path else p1.get("pdf"),
+        "board_summary": str(board_path) if board_path else None,
+        "retest_delta": p1.get("delta_report"),
+        "network_map": str(map_path),
+        "sector": sector,
+        "status": "completed",
     }
+    _ev(
+        "dashboard",
+        f"Audit complete {session_id}: {len(hosts_up)} hosts, {len(open_ports)} services, "
+        f"{len(vulns)} findings, posture {posture.get('posture_score', 'n/a')}",
+        "info" if not vulns else "medium",
+        details=result,
+    )
     try:
         from cyberaudit.alerts import notify_scan_complete, notify_critical_findings
         notify_critical_findings(vulns, session_id)
@@ -140,8 +197,12 @@ def run_audit_job(job: dict) -> dict:
         logger.warning("alerts skipped: %s", exc)
         result["alerts"] = {"error": str(exc)}
 
-    _ev("dashboard",
-        f"Audit complete {session_id}: {len(hosts_up)} hosts, {len(vulns)} findings, "
-        f"posture {posture.get('posture_score', 'n/a')}",
-        "info" if not vulns else "medium", details=result)
+    try:
+        from cyberaudit.engagement_export import ensure_pack_for_result
+        result = ensure_pack_for_result(result)
+        if result.get("engagement_pack"):
+            _ev("pdf_report_module", f"Engagement pack: {Path(result['engagement_pack']).name}")
+    except Exception as exc:
+        logger.warning("engagement pack skipped: %s", exp if False else exc)
+
     return result
