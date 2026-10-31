@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import datetime
 import json
 import logging
 import random
@@ -68,6 +67,7 @@ def process_inbox_file(path: Path) -> bool:
 
 
 def _mark_job_status(job_id: str, status: str) -> None:
+    """Last-resort status write when job_control is unavailable."""
     try:
         with get_db() as conn:
             conn.execute(
@@ -80,7 +80,7 @@ def _mark_job_status(job_id: str, status: str) -> None:
 
 
 def process_job_file(path: Path) -> bool:
-    """Execute a queued audit job with the real pipeline engine."""
+    """Execute a queued audit job with claim, heartbeat, and transactional finalize."""
     try:
         job = json.loads(path.read_text(encoding="utf-8"))
         try:
@@ -109,13 +109,47 @@ def process_job_file(path: Path) -> bool:
         return True
 
     job_id = job.get("job_id") or path.stem
+    job["job_id"] = job_id
     target = (job.get("target") or "").strip()
     if not target:
         logger.error("Job %s missing target", job_id)
         _mark_job_status(job_id, "failed")
         return False
 
-    _mark_job_status(job_id, "running")
+    try:
+        from cyberaudit.job_control import (
+            ensure_job_row,
+            register_or_reject_duplicate,
+            claim_job,
+            heartbeat,
+            transactional_finalize,
+            mark_job,
+        )
+        ensure_job_row(job)
+        allowed, reason = register_or_reject_duplicate(job)
+        if not allowed:
+            logger.warning("job %s rejected: %s", job_id, reason)
+            insert_live_event(
+                module="dashboard",
+                message=f"Duplicate job skipped: {job_id} — {reason}",
+                severity="info",
+                event_type="job",
+                details={"job_id": job_id, "reason": reason},
+            )
+            return True
+        if not claim_job(job_id):
+            logger.info("job %s not claimed (held by another worker or exhausted)", job_id)
+            return False
+        heartbeat(job_id, detail="pipeline start")
+    except Exception as exc:
+        logger.error("job_control bootstrap failed: %s", exc)
+        try:
+            from cyberaudit.job_control import mark_job
+            mark_job(job_id, "failed", error=f"job_control: {exc}"[:400])
+        except Exception:
+            _mark_job_status(job_id, "failed")
+        return False
+
     insert_live_event(
         module="dashboard",
         message=f"Real audit pipeline started: {job_id} → {target}",
@@ -129,13 +163,30 @@ def process_job_file(path: Path) -> bool:
         from cyberaudit.hardening import fail_safe_job, audit_event
 
         result = fail_safe_job(run_audit_job, job)
+        try:
+            heartbeat(job_id, detail="pipeline finished")
+        except Exception:
+            pass
+
+        try:
+            from cyberaudit.job_control import transactional_finalize
+            result = transactional_finalize(
+                result if isinstance(result, dict) else {"status": "failed"},
+                job_id=job_id,
+            )
+        except Exception as fexc:
+            logger.error("finalization error: %s", fexc)
+            if isinstance(result, dict):
+                result["status"] = "failed"
+                result["error"] = str(fexc)[:300]
+            mark_job(job_id, "failed", error=str(fexc)[:300])
+
         if result.get("status") == "failed":
             raise RuntimeError(result.get("error") or "job failed")
         try:
             audit_event("scan_complete", detail={"job_id": job_id, "session_id": result.get("session_id")})
         except Exception:
             pass
-        _mark_job_status(job_id, "completed")
         insert_live_event(
             module="dashboard",
             message=(
@@ -149,7 +200,11 @@ def process_job_file(path: Path) -> bool:
         return True
     except Exception as e:
         logger.exception("Audit job %s failed: %s", job_id, e)
-        _mark_job_status(job_id, "failed")
+        try:
+            from cyberaudit.job_control import mark_job
+            mark_job(job_id, "failed", error=str(e)[:500])
+        except Exception:
+            _mark_job_status(job_id, "failed")
         insert_live_event(
             module="dashboard",
             message=f"Audit job failed: {job_id} — {e}",
