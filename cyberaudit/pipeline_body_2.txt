@@ -203,6 +203,6 @@ def run_audit_job(job: dict) -> dict:
         if result.get("engagement_pack"):
             _ev("pdf_report_module", f"Engagement pack: {Path(result['engagement_pack']).name}")
     except Exception as exc:
-        logger.warning("engagement pack skipped: %s", exp if False else exc)
+        logger.warning("engagement pack skipped: %s", exc)
 
     return result
