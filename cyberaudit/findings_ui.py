@@ -23,7 +23,6 @@ def enrich_finding_row(f: dict[str, Any]) -> dict[str, Any]:
     plain_risk = ""
     plain_action = ""
 
-    # 1) Prefer risk_translator packs (most complete)
     try:
         from cyberaudit.risk_translator import translate
         pack = translate(
@@ -41,7 +40,6 @@ def enrich_finding_row(f: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         pass
 
-    # 2) Director mode overlay (title polish + structured view)
     try:
         from cyberaudit.director_mode import director_view, director_title
         finding_in = {
@@ -67,7 +65,6 @@ def enrich_finding_row(f: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         pass
 
-    # 3) Hard fallbacks — Director Test must never see empty cells
     low = title.lower()
     if not plain_what:
         if "smb" in low or "445" in low:
@@ -103,16 +100,18 @@ def enrich_finding_row(f: dict[str, Any]) -> dict[str, Any]:
     money = ""
     try:
         from cyberaudit.money_risk import estimate_cost
-        est = estimate_cost(severity)
+        est = estimate_cost(f)  # full finding, not severity string
         if isinstance(est, dict):
-            money = est.get("range_tt") or est.get("display") or ""
+            money = est.get("tt_display") or est.get("display") or ""
+            out["money"] = est
+            out.setdefault("money", {})["is_estimate"] = True
         elif isinstance(est, str):
             money = est
     except Exception:
         pass
 
     if money and plain_risk and "TT$" not in plain_risk:
-        plain_risk = f"{plain_risk} Estimated recovery impact: {money}."
+        plain_risk = f"{plain_risk} Estimated recovery impact: {money} (estimate — not a formal quote)."
 
     status = (f.get("status") or "open").lower()
     status_label = {
@@ -144,4 +143,10 @@ def enrich_finding_row(f: dict[str, Any]) -> dict[str, Any]:
 
 
 def enrich_list(rows: list[dict]) -> list[dict]:
-    return [enrich_finding_row(r) for r in rows]
+    enriched = [enrich_finding_row(r) for r in rows]
+    try:
+        from cyberaudit.finding_enrichment import enrich_findings_complete
+        full = enrich_findings_complete(enriched)
+        return full
+    except Exception:
+        return enriched
