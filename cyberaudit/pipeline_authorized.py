@@ -1,4 +1,4 @@
-"""Authorized audit entrypoint — CyberAudit 3.10.3.
+"""Authorized audit entrypoint — CyberAudit 3.10.4.
 
 ROE before any network activity. Static helpers from pipeline_helpers (no exec).
 """
@@ -129,7 +129,7 @@ def run_audit_job(job: dict) -> dict:
         from cyberaudit.risk_translator import enrich_with_plain_language
         vulns = enrich_with_plain_language(vulns)
     except Exception as exc:
-        logger.warning("risk translator skipped: %s", exc)
+        logger.warning("risk translator skipped: %s", exp if False else exc)
 
     _mod("pdf_report_module", "running", "Phase 1: CVSS, posture, reports")
     vulns, p1 = apply_phase1(
