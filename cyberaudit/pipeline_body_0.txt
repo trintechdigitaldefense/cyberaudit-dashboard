@@ -156,6 +156,11 @@ def _nmap_available() -> bool:
 
 
 def discover_live_hosts(hosts: list[str]) -> list[str]:
+    """Return only hosts that responded to liveness probes.
+
+    CyberAudit 3.10: never substitute unresponsive candidates as live.
+    Empty result is valid and must be handled by the caller.
+    """
     _mod("nmap_module", "running", f"Host discovery on {len(hosts)} address(es)")
     _ev("nmap_module", f"Discovering live systems ({len(hosts)} candidates)")
     live: list[str] = []
@@ -164,8 +169,13 @@ def discover_live_hosts(hosts: list[str]) -> list[str]:
         for fut in as_completed(futs):
             if fut.result():
                 live.append(futs[fut])
-    if not live and len(hosts) == 1:
-        live = list(hosts)
-    live = sorted(set(live), key=lambda x: tuple(int(p) if p.isdigit() else 0 for p in x.replace(":", ".").split(".")[:4]))
-    _ev("nmap_module", f"Live systems: {len(live)}", details={"hosts": live[:50]})
+    live = sorted(
+        set(live),
+        key=lambda x: tuple(int(p) if p.isdigit() else 0 for p in x.replace(":", ".").split(".")[:4]),
+    )
+    if not live:
+        _mod("nmap_module", "ok", "No live hosts responded to discovery probes")
+        _ev("nmap_module", "Discovery complete — 0 live hosts (unresponsive candidates not assumed live)")
+    else:
+        _ev("nmap_module", f"Live systems: {len(live)}", details={"hosts": live[:50]})
     return live
