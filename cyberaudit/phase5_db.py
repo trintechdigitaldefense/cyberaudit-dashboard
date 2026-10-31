@@ -68,6 +68,7 @@ def migrate_phase5() -> None:
 
 
 def backup_db(dest: Path | str) -> Path:
+    """Backup the active tenant database (WAL checkpoint first)."""
     from cyberaudit.db import _db_path
 
     src = _db_path()
@@ -88,6 +89,7 @@ def backup_db(dest: Path | str) -> Path:
 
 
 def restore_db(src: Path | str) -> Path:
+    """Restore into the active tenant database path."""
     from cyberaudit.db import _db_path
 
     dest = _db_path()
@@ -102,3 +104,25 @@ def restore_db(src: Path | str) -> Path:
     finally:
         conn.close()
     return dest
+
+
+def backup_database(dest=None):
+    """Alias for backup_db — accepts a file path or a directory."""
+    from datetime import datetime, timezone
+    from cyberaudit.db import _db_path
+
+    if dest is None:
+        dest = _db_path().parent / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.db"
+    else:
+        dest = Path(dest)
+        if dest.exists() and dest.is_dir():
+            dest = dest / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.db"
+        elif dest.suffix == "" and not dest.exists():
+            dest.mkdir(parents=True, exist_ok=True)
+            dest = dest / f"backup_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.db"
+    return backup_db(dest)
+
+
+def restore_database(src, force: bool = False):
+    """Alias for restore_db. ``force`` accepted for API compatibility."""
+    return restore_db(src)
