@@ -45,8 +45,7 @@ def _is_valid_zip(path: Path | str | None) -> bool:
         return False
     try:
         with zipfile.ZipFile(str(path), "r") as zf:
-            bad = zf.testzip()
-            return bad is None
+            return zf.testzip() is None
     except Exception:
         return False
 
@@ -55,12 +54,10 @@ def validate_deliverables(result: dict[str, Any]) -> tuple[bool, list[str], list
     missing: list[str] = []
     optional_failed: list[str] = []
 
-    for key in MANDATORY_KEYS:
-        if key == "executive_txt":
-            if not (_is_valid_file(result.get("executive_txt")) or _is_valid_file(result.get("report"))):
-                missing.append(key)
-        elif not _is_valid_file(result.get(key) or result.get("report_technical" if key == "technical_txt" else key)):
-            missing.append(key)
+    if not (_is_valid_file(result.get("executive_txt")) or _is_valid_file(result.get("report"))):
+        missing.append("executive_txt")
+    if not (_is_valid_file(result.get("technical_txt")) or _is_valid_file(result.get("report_technical"))):
+        missing.append("technical_txt")
 
     pdf = result.get("executive_pdf")
     if pdf:
@@ -114,10 +111,7 @@ def _sync_status(session_id: str | None, job_id: str | None, status: str, note: 
                 )
             if job_id:
                 try:
-                    conn.execute(
-                        "UPDATE audit_jobs SET status=? WHERE job_id=?",
-                        (status, job_id),
-                    )
+                    conn.execute("UPDATE audit_jobs SET status=? WHERE job_id=?", (status, job_id))
                 except Exception:
                     pass
             conn.commit()
