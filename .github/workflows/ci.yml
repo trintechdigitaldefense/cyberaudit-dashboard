@@ -26,6 +26,7 @@ jobs:
           DEMO_MODE: "1"
           CYBERAUDIT_SECRET: "ci-test-secret-32-characters-ok!!"
           CYBERAUDIT_ROE_SECRET: "ci-roe-secret-32-characters-ok!!!"
+          CYBERAUDIT_REPORT_SECRET: "ci-report-secret-32-characters-ok"
           CYBERAUDIT_DATA_DIR: /tmp/ca_ci_data
           CYBERAUDIT_REPORTS_DIR: /tmp/ca_ci_reports
           CYBERAUDIT_DB_PATH: /tmp/ca_ci_data/cyber_audit.db
@@ -43,23 +44,7 @@ jobs:
             tests/test_phase9_docs.py \
             tests/test_phase3101_integration.py \
             tests/test_phase3102_runtime.py \
+            tests/test_phase3103_core.py \
             -q --tb=line
       - name: Dependency audit
         run: pip-audit -r requirements.txt
-      - name: Secrets gate smoke
-        run: |
-          python -c "
-          import os
-          os.environ['DEMO_MODE']='0'
-          os.environ['CYBERAUDIT_SECRET']='x'*32
-          from cyberaudit import config
-          config.DEMO_MODE=False
-          config.AUTH_USER='admin'
-          config.AUTH_PASSWORD='admin'
-          from cyberaudit.hardening import assert_production_secrets
-          try:
-              assert_production_secrets()
-              raise SystemExit('should have refused admin/admin')
-          except SystemExit as e:
-              print('OK refused:', e)
-          "

@@ -1,8 +1,6 @@
-"""CyberAudit pipeline engine — 3.10.2 single entry.
+"""CyberAudit pipeline engine — 3.10.3.
 
-Authorized run_audit_job lives in pipeline_authorized.py so imports of
-`from cyberaudit.pipeline_engine import run_audit_job` always use the ROE-gated
-path, regardless of any stale pipeline_body_2.txt on disk or GitHub.
+Single entry: pipeline_authorized.run_audit_job (ROE-first, static helpers).
 """
 from __future__ import annotations
 
