@@ -1,10 +1,14 @@
 """CVSS 4.0 base-score overlay for CyberAudit findings.
 
-Maps service/exposure findings to approximate CVSS 4.0 base scores so IT teams
-can drop results into existing risk frameworks without rework.
+Scores are heuristic (network exposure + service class + optional version evidence),
+not full NVD metrics. Labelled as CyberAudit-CVSS4 estimates in reports.
 
-Scores are heuristic (network exposure + service class), not full NVD metrics.
-They are labelled as CyberAudit-CVSS4 estimates in reports.
+Scoring inputs (documented):
+  - service class (telnet, rdp, smb, …)
+  - declared severity floor from the finding
+  - classification (potential_exposure vs version_suspect)
+  - confidence (low/medium/high)
+  - never claims NVD official scoring
 """
 
 from __future__ import annotations
@@ -55,6 +59,8 @@ def score_finding(
     title: str = "",
     severity: str = "",
     port: str | int = "",
+    classification: str = "",
+    confidence: str = "",
 ) -> dict[str, Any]:
     key = (service or "").lower().strip()
     title_l = (title or "").lower()
@@ -74,6 +80,13 @@ def score_finding(
     if (severity or "").lower() in ("low", "info") and matched == "ssh":
         base = min(base, 3.7)
 
+    cls = (classification or "").lower()
+    conf = (confidence or "").lower()
+    if cls == "potential_exposure" and matched not in ("telnet", "redis"):
+        base = min(base, 8.5)
+    if conf == "low" and cls == "potential_exposure":
+        base = min(base, max(base * 0.95, floor or 0.1))
+
     base = round(min(10.0, max(0.0, base)), 1)
     return {
         "cvss_version": "4.0",
@@ -82,7 +95,17 @@ def score_finding(
         "cvss_vector": f"CVSS:4.0/{vector}",
         "cvss_rationale": rationale,
         "cvss_service_key": matched,
-        "cvss_note": "CyberAudit estimate for prioritisation — not an NVD official score.",
+        "cvss_inputs": {
+            "service": service,
+            "severity": severity,
+            "classification": classification or "unspecified",
+            "confidence": confidence or "unspecified",
+            "matched_key": matched,
+        },
+        "cvss_note": (
+            "CyberAudit CVSS 4.0 estimate for prioritisation — not an NVD official score. "
+            "Based on service exposure class and available evidence only."
+        ),
     }
 
 
@@ -93,6 +116,8 @@ def enrich_finding(finding: dict) -> dict:
         title=str(out.get("title") or ""),
         severity=str(out.get("severity") or ""),
         port=out.get("port") or "",
+        classification=str(out.get("classification") or ""),
+        confidence=str(out.get("confidence") or ""),
     )
     out.update(overlay)
     return out
